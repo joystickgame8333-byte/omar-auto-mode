@@ -3,9 +3,6 @@ name: Build Omar Auto Mode rootless deb
 on:
   workflow_dispatch:
   push:
-    paths:
-      - "projects/omar-auto-mode-real/**"
-      - ".github/workflows/omar-auto-mode-build-rootless.yml"
 
 jobs:
   build:
@@ -22,6 +19,8 @@ jobs:
           echo "THEOS=$HOME/theos" >> "$GITHUB_ENV"
       - name: Build
         run: |
+          make --version
+          xcodebuild -version
           make clean package THEOS_PACKAGE_SCHEME=rootless FINALPACKAGE=1
       - name: Upload package
         uses: actions/upload-artifact@v4
