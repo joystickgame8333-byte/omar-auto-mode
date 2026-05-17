@@ -12,10 +12,41 @@
 
 static void OMAOMRefreshAllIconViews(void);
 
+static NSArray<UIWindow *> *OMAOMApplicationWindows(void) {
+    NSMutableArray<UIWindow *> *windows = [NSMutableArray array];
+
+    if (@available(iOS 13.0, *)) {
+        for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+            if (![scene isKindOfClass:UIWindowScene.class]) {
+                continue;
+            }
+
+            UIWindowScene *windowScene = (UIWindowScene *)scene;
+            for (UIWindow *window in windowScene.windows) {
+                if (window) {
+                    [windows addObject:window];
+                }
+            }
+        }
+    }
+
+    if (!windows.count) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+        NSArray<UIWindow *> *legacyWindows = UIApplication.sharedApplication.windows;
+#pragma clang diagnostic pop
+        if (legacyWindows.count) {
+            [windows addObjectsFromArray:legacyWindows];
+        }
+    }
+
+    return windows;
+}
+
 static NSString *OMAOMLastDetectedMode(void) {
     if (@available(iOS 13.0, *)) {
         UIUserInterfaceStyle style = UIUserInterfaceStyleUnspecified;
-        for (UIWindow *window in UIApplication.sharedApplication.windows) {
+        for (UIWindow *window in OMAOMApplicationWindows()) {
             UIUserInterfaceStyle windowStyle = window.traitCollection.userInterfaceStyle;
             if (windowStyle == UIUserInterfaceStyleDark || windowStyle == UIUserInterfaceStyleLight) {
                 style = windowStyle;
@@ -246,7 +277,7 @@ static void OMAOMRefreshAllIconViews(void) {
     }
 
     dispatch_async(dispatch_get_main_queue(), ^{
-        for (UIWindow *window in UIApplication.sharedApplication.windows) {
+        for (UIWindow *window in OMAOMApplicationWindows()) {
             OMAOMRefreshIconViewsInView(window);
         }
     });
