@@ -1,6 +1,6 @@
 Package: com.omaralasam.automode
 Name: Omar Auto Mode
-Version: 1.8-rootless
+Version: 1.9-rootless
 Architecture: iphoneos-arm64
 Description: Icons-only SpringBoard test for Omar Auto Mode. Wallpaper changes are disabled.
 Maintainer: Omar al-Asam <omar@example.local>
