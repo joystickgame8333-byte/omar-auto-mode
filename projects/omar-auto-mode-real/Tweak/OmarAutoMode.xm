@@ -60,10 +60,12 @@ static void OMAOMApplyWallpaperAtPath(NSString *path, NSInteger wallpaperMode) {
 #pragma clang diagnostic ignored "-Warc-performSelector-leaks"
         id allocated = [wallpaperClass alloc];
         id controller = nil;
-        if ([allocated respondsToSelector:@selector(initWithUIImage:)]) {
-            controller = [allocated performSelector:@selector(initWithUIImage:) withObject:image];
-        } else if ([allocated respondsToSelector:@selector(initWithImage:)]) {
-            controller = [allocated performSelector:@selector(initWithImage:) withObject:image];
+        SEL initWithUIImage = NSSelectorFromString(@"initWithUIImage:");
+        SEL initWithImage = NSSelectorFromString(@"initWithImage:");
+        if ([allocated respondsToSelector:initWithUIImage]) {
+            controller = [allocated performSelector:initWithUIImage withObject:image];
+        } else if ([allocated respondsToSelector:initWithImage]) {
+            controller = [allocated performSelector:initWithImage withObject:image];
         } else {
             controller = [allocated init];
             @try {
