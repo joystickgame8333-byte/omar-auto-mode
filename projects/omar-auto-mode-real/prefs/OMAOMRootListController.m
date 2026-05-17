@@ -280,6 +280,7 @@ extern char **environ;
         [NSString stringWithFormat:@"Icons: %@", [self debugIconValue]],
         [NSString stringWithFormat:@"Last icon path: %@", [self debugStringForKey:@"DebugLastIconPath" fallback:@"Not Found"]],
         [NSString stringWithFormat:@"Last miss: %@", [self debugStringForKey:@"DebugLastIconMiss" fallback:@"None"]],
+        [NSString stringWithFormat:@"Icon view: %@ / applied %@", [self debugStringForKey:@"DebugLastIconView" fallback:@"Not touched"], [self debugStringForKey:@"DebugLastIconImageViewsApplied" fallback:@"0"]],
         [NSString stringWithFormat:@"Windows: %@", [self debugStringForKey:@"DebugWindowCount" fallback:@"0"]],
         [NSString stringWithFormat:@"Icon containers: %@", [self debugStringForKey:@"DebugIconContainerCount" fallback:@"0"]],
         [NSString stringWithFormat:@"Wallpaper: %@", [self debugWallpaperValue]],

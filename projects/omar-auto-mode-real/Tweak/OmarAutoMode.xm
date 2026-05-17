@@ -4,8 +4,25 @@
 @interface SBApplicationIcon : NSObject
 @end
 
+@interface SBIconView : UIView
+@end
+
+@interface SBIconImageView : UIView
+@end
+
 static NSInteger OMAOMIconHitCount = 0;
 static NSInteger OMAOMIconMissCount = 0;
+static NSInteger OMAOMIconContainerApplyCount = 0;
+
+static NSCache<NSString *, UIImage *> *OMAOMIconImageCache(void) {
+    static NSCache<NSString *, UIImage *> *cache;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        cache = [NSCache new];
+        cache.countLimit = 256;
+    });
+    return cache;
+}
 
 static NSNumber *OMAOMNowNumber(void) {
     return @([[NSDate date] timeIntervalSince1970]);
@@ -16,7 +33,13 @@ static void OMAOMDebugEvent(NSString *event) {
     OMAOMSetDiagnosticValue(@"LastEventAt", OMAOMNowNumber());
 }
 
+static UIImage *OMAOMImageForIcon(id icon);
+
 static NSUInteger OMAOMPNGFileCountAtPath(NSString *path) {
+    if (!path.length) {
+        return 0;
+    }
+
     BOOL isDirectory = NO;
     if (![NSFileManager.defaultManager fileExistsAtPath:path isDirectory:&isDirectory] || !isDirectory) {
         return 0;
@@ -91,17 +114,31 @@ static NSString *OMAOMFallbackThemePathForMode(NSString *mode) {
     return nil;
 }
 
+static BOOL OMAOMThemeNameLooksWrongForMode(NSString *path, NSString *mode) {
+    NSString *name = path.lastPathComponent.lowercaseString ?: @"";
+    if ([mode isEqualToString:@"dark"]) {
+        return [name containsString:@"light"] || [name containsString:@"white"] || [name containsString:@"clear"];
+    }
+    return [name containsString:@"dark"] || [name containsString:@"night"] || [name containsString:@"black"];
+}
+
 static NSString *OMAOMThemePathForMode(NSString *mode, NSString *themeKey) {
     NSString *selected = OMAOMStringPreference(themeKey, OMAOMDefaultPathForKey(themeKey));
-    if (OMAOMPNGFileCountAtPath(selected) > 0) {
+    NSUInteger selectedCount = OMAOMPNGFileCountAtPath(selected);
+    NSString *fallback = OMAOMFallbackThemePathForMode(mode);
+    NSUInteger fallbackCount = OMAOMPNGFileCountAtPath(fallback);
+
+    if (fallback.length) {
+        OMAOMSetDiagnosticValue(@"FallbackThemePath", fallback);
+    }
+
+    if (selectedCount > 0 && (!fallback.length || fallbackCount == 0 || !OMAOMThemeNameLooksWrongForMode(selected, mode))) {
         OMAOMSetDiagnosticValue(@"ThemeSource", @"selected");
         return selected;
     }
 
-    NSString *fallback = OMAOMFallbackThemePathForMode(mode);
-    if (fallback.length) {
-        OMAOMSetDiagnosticValue(@"ThemeSource", @"fallback");
-        OMAOMSetDiagnosticValue(@"FallbackThemePath", fallback);
+    if (fallback.length && fallbackCount > 0) {
+        OMAOMSetDiagnosticValue(@"ThemeSource", selectedCount > 0 ? @"fallback-mismatch" : @"fallback-empty-selected");
         return fallback;
     }
 
@@ -165,12 +202,12 @@ static void OMAOMApplyCurrentModeProbe(void) {
     OMAOMSetDiagnosticValue(@"ThemeKey", themeKey);
     OMAOMSetDiagnosticValue(@"ThemePath", themePath);
     OMAOMSetDiagnosticValue(@"ThemePNGCount", @(OMAOMPNGFileCountAtPath(themePath)));
-    OMAOMSetDiagnosticValue(@"LastWallpaperResult", @"disabled in 1.8 icons-only");
-    OMAOMSetDiagnosticValue(@"ProofWallpaperResult", @"disabled in 1.8 icons-only");
+    OMAOMSetDiagnosticValue(@"LastWallpaperResult", @"disabled in 2.0 icons-only");
+    OMAOMSetDiagnosticValue(@"ProofWallpaperResult", @"disabled in 2.0 icons-only");
     OMAOMSetDiagnosticValue(@"WindowCount", @0);
-    OMAOMSetDiagnosticValue(@"IconContainerCount", @0);
 
     if (OMAOMCopyDirectory(themePath, OMAOMActiveIconsPath())) {
+        [OMAOMIconImageCache() removeAllObjects];
         OMAOMSetPreferenceSilently(@"LastAppliedMode", mode);
         OMAOMSetPreferenceSilently(@"ActiveThemePath", OMAOMActiveIconsPath());
         OMAOMSetDiagnosticValue(@"ActiveThemePath", OMAOMActiveIconsPath());
@@ -193,6 +230,10 @@ static void OMAOMDarwinCallback(CFNotificationCenterRef center, void *observer, 
 }
 
 static NSString *OMAOMBundleIdentifierForIcon(id icon) {
+    if ([icon isKindOfClass:NSString.class] && [icon length]) {
+        return icon;
+    }
+
     NSArray<NSString *> *selectors = @[@"applicationBundleID", @"bundleIdentifier", @"displayIdentifier", @"leafIdentifier", @"nodeIdentifier"];
     for (NSString *selectorName in selectors) {
         SEL selector = NSSelectorFromString(selectorName);
@@ -222,6 +263,94 @@ static NSString *OMAOMBundleIdentifierForIcon(id icon) {
     return nil;
 }
 
+static id OMAOMIconObjectForView(UIView *view) {
+    UIView *current = view;
+    NSUInteger depth = 0;
+    while (current && depth < 8) {
+        NSArray<NSString *> *selectors = @[@"icon", @"applicationIcon", @"representedIcon", @"displayedIcon", @"leafIcon"];
+        for (NSString *selectorName in selectors) {
+            SEL selector = NSSelectorFromString(selectorName);
+            if (![current respondsToSelector:selector]) {
+                continue;
+            }
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+            id value = [current performSelector:selector];
+#pragma clang diagnostic pop
+            if (OMAOMBundleIdentifierForIcon(value).length) {
+                return value;
+            }
+        }
+
+        NSArray<NSString *> *keys = @[@"icon", @"_icon", @"applicationIcon", @"representedIcon", @"displayedIcon", @"leafIcon"];
+        for (NSString *key in keys) {
+            @try {
+                id value = [current valueForKey:key];
+                if (OMAOMBundleIdentifierForIcon(value).length) {
+                    return value;
+                }
+            } @catch (__unused NSException *exception) {
+            }
+        }
+
+        current = current.superview;
+        depth++;
+    }
+    return nil;
+}
+
+static BOOL OMAOMImageViewLooksLikeIconArtwork(UIImageView *imageView) {
+    CGSize size = imageView.bounds.size;
+    CGFloat minDimension = MIN(size.width, size.height);
+    CGFloat maxDimension = MAX(size.width, size.height);
+    if (minDimension < 32.0 || maxDimension > 190.0) {
+        return NO;
+    }
+    return maxDimension / MAX(minDimension, 1.0) < 1.45;
+}
+
+static NSInteger OMAOMApplyImageToIconArtworkViews(UIView *view, UIImage *image) {
+    if (!view || !image) {
+        return 0;
+    }
+
+    NSInteger applied = 0;
+    if ([view isKindOfClass:UIImageView.class]) {
+        UIImageView *imageView = (UIImageView *)view;
+        if (OMAOMImageViewLooksLikeIconArtwork(imageView)) {
+            if (imageView.image != image) {
+                imageView.image = image;
+            }
+            imageView.contentMode = UIViewContentModeScaleAspectFit;
+            applied++;
+        }
+    }
+
+    for (UIView *subview in view.subviews) {
+        applied += OMAOMApplyImageToIconArtworkViews(subview, image);
+    }
+    return applied;
+}
+
+static void OMAOMApplyThemedImageToIconContainer(UIView *view) {
+    id icon = OMAOMIconObjectForView(view);
+    UIImage *image = OMAOMImageForIcon(icon);
+    if (!image) {
+        return;
+    }
+
+    NSInteger applied = OMAOMApplyImageToIconArtworkViews(view, image);
+    if (applied <= 0) {
+        return;
+    }
+
+    OMAOMIconContainerApplyCount++;
+    OMAOMSetDiagnosticValue(@"IconContainerCount", @(OMAOMIconContainerApplyCount));
+    OMAOMSetDiagnosticValue(@"LastIconView", NSStringFromClass(view.class));
+    OMAOMSetDiagnosticValue(@"LastIconImageViewsApplied", @(applied));
+}
+
 static UIImage *OMAOMImageForBundleIdentifier(NSString *bundleIdentifier) {
     if (!OMAOMBoolPreference(@"Enabled", YES) || !bundleIdentifier.length) {
         return nil;
@@ -240,6 +369,14 @@ static UIImage *OMAOMImageForBundleIdentifier(NSString *bundleIdentifier) {
         return nil;
     }
 
+    UIImage *cachedImage = [OMAOMIconImageCache() objectForKey:path];
+    if (cachedImage) {
+        OMAOMIconHitCount++;
+        OMAOMSetDiagnosticValue(@"IconHits", @(OMAOMIconHitCount));
+        OMAOMSetDiagnosticValue(@"LastIconPath", path);
+        return cachedImage;
+    }
+
     NSData *data = [NSData dataWithContentsOfFile:path];
     if (!data.length) {
         OMAOMIconMissCount++;
@@ -256,6 +393,7 @@ static UIImage *OMAOMImageForBundleIdentifier(NSString *bundleIdentifier) {
         return nil;
     }
 
+    [OMAOMIconImageCache() setObject:image forKey:path];
     OMAOMIconHitCount++;
     OMAOMSetDiagnosticValue(@"IconHits", @(OMAOMIconHitCount));
     OMAOMSetDiagnosticValue(@"LastIconPath", path);
@@ -285,6 +423,44 @@ static UIImage *OMAOMImageForIcon(id icon) {
 
 %end
 
+%hook SBIconView
+
+- (void)layoutSubviews {
+    %orig;
+    OMAOMApplyThemedImageToIconContainer((UIView *)self);
+}
+
+- (void)didMoveToWindow {
+    %orig;
+    OMAOMApplyThemedImageToIconContainer((UIView *)self);
+}
+
+- (void)setIcon:(id)icon {
+    %orig;
+    OMAOMApplyThemedImageToIconContainer((UIView *)self);
+}
+
+%end
+
+%hook SBIconImageView
+
+- (void)layoutSubviews {
+    %orig;
+    OMAOMApplyThemedImageToIconContainer((UIView *)self);
+}
+
+- (void)didMoveToWindow {
+    %orig;
+    OMAOMApplyThemedImageToIconContainer((UIView *)self);
+}
+
+- (void)setIcon:(id)icon {
+    %orig;
+    OMAOMApplyThemedImageToIconContainer((UIView *)self);
+}
+
+%end
+
 %ctor {
     @autoreleasepool {
         if (![NSBundle.mainBundle.bundleIdentifier isEqualToString:@"com.apple.springboard"]) {
@@ -296,7 +472,10 @@ static UIImage *OMAOMImageForIcon(id icon) {
             OMAOMSetDiagnosticValue(@"EngineLoaded", @"YES");
             OMAOMSetDiagnosticValue(@"LoadedAt", OMAOMNowNumber());
             OMAOMSetDiagnosticValue(@"HostBundle", NSBundle.mainBundle.bundleIdentifier ?: @"");
-            OMAOMDebugEvent(@"1.8 icons-only engine loaded");
+            OMAOMSetDiagnosticValue(@"IconContainerCount", @0);
+            OMAOMSetDiagnosticValue(@"LastIconView", @"not touched");
+            OMAOMSetDiagnosticValue(@"LastIconImageViewsApplied", @0);
+            OMAOMDebugEvent(@"2.0 icon-view engine loaded");
             CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, OMAOMDarwinCallback, (__bridge CFStringRef)OMAOMApplyNotification, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
             CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, OMAOMDarwinCallback, (__bridge CFStringRef)OMAOMPreferencesChangedNotification, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
             OMAOMApplyCurrentModeProbe();
