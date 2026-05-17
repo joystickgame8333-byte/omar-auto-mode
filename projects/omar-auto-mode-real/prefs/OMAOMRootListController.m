@@ -117,7 +117,8 @@ extern char **environ;
 - (NSString *)debugThemeValue {
     NSString *path = [self debugStringForKey:@"DebugThemePath" fallback:@"Not Set"];
     NSString *count = [self debugStringForKey:@"DebugThemePNGCount" fallback:@"0"];
-    return [NSString stringWithFormat:@"%@ - %@ png", path.lastPathComponent.length ? path.lastPathComponent : path, count];
+    NSString *source = [self debugStringForKey:@"DebugThemeSource" fallback:@"unknown"];
+    return [NSString stringWithFormat:@"%@ - %@ png - %@", path.lastPathComponent.length ? path.lastPathComponent : path, count, source];
 }
 
 - (NSString *)debugIconValue {
@@ -260,7 +261,7 @@ extern char **environ;
     OMAOMSetDiagnosticValue(@"LastEvent", @"engine probe sent from Settings");
     OMAOMSetDiagnosticValue(@"ProofWallpaperPath", OMAOMProofLockWallpaperPath());
     OMAOMPostDarwinNotification(OMAOMApplyNotification);
-    [self showMessageWithTitle:@"Probe Requested" message:@"A safe probe was sent to SpringBoard. It does not change wallpaper or icons. Open Diagnostics after a few seconds to see whether the engine received it."];
+    [self showMessageWithTitle:@"Probe Requested" message:@"An icons-only probe was sent to SpringBoard. Wallpapers remain disabled. Open Diagnostics after a few seconds to see whether icon lookup is working."];
 }
 
 - (void)showDiagnostics {
@@ -271,6 +272,8 @@ extern char **environ;
         [NSString stringWithFormat:@"Error: %@", [self lastErrorValue]],
         [NSString stringWithFormat:@"Mode: %@", [self debugStringForKey:@"DebugLastMode" fallback:@"Unknown"]],
         [NSString stringWithFormat:@"Theme: %@", [self debugStringForKey:@"DebugThemePath" fallback:@"Not Set"]],
+        [NSString stringWithFormat:@"Theme source: %@", [self debugStringForKey:@"DebugThemeSource" fallback:@"unknown"]],
+        [NSString stringWithFormat:@"Fallback theme: %@", [self debugStringForKey:@"DebugFallbackThemePath" fallback:@"None"]],
         [NSString stringWithFormat:@"Active: %@", [self debugStringForKey:@"DebugActiveThemePath" fallback:@"Not Set"]],
         [NSString stringWithFormat:@"Theme PNGs: %@", [self debugStringForKey:@"DebugThemePNGCount" fallback:@"0"]],
         [NSString stringWithFormat:@"Active PNGs: %@", [self debugStringForKey:@"DebugActiveThemePNGCount" fallback:@"0"]],

@@ -1,6 +1,12 @@
 #import <UIKit/UIKit.h>
 #import "../Shared/OMAOMShared.h"
 
+@interface SBApplicationIcon : NSObject
+@end
+
+static NSInteger OMAOMIconHitCount = 0;
+static NSInteger OMAOMIconMissCount = 0;
+
 static NSNumber *OMAOMNowNumber(void) {
     return @([[NSDate date] timeIntervalSince1970]);
 }
@@ -35,6 +41,72 @@ static NSString *OMAOMLastDetectedMode(void) {
         return style == UIUserInterfaceStyleDark ? @"dark" : @"light";
     }
     return @"light";
+}
+
+static NSArray<NSString *> *OMAOMThemeSearchRoots(void) {
+    return @[
+        OMAOMIconThemesPath(),
+        @"/var/jb/Library/Themes",
+        @"/Library/Themes",
+    ];
+}
+
+static NSArray<NSString *> *OMAOMThemePathsFromRoot(NSString *root) {
+    NSArray<NSString *> *names = [NSFileManager.defaultManager contentsOfDirectoryAtPath:root error:nil] ?: @[];
+    NSMutableArray<NSString *> *paths = [NSMutableArray array];
+    for (NSString *name in [names sortedArrayUsingSelector:@selector(localizedCaseInsensitiveCompare:)]) {
+        NSString *path = [root stringByAppendingPathComponent:name];
+        BOOL isDirectory = NO;
+        if ([NSFileManager.defaultManager fileExistsAtPath:path isDirectory:&isDirectory] && isDirectory) {
+            [paths addObject:path];
+        }
+    }
+    return paths;
+}
+
+static NSString *OMAOMFallbackThemePathForMode(NSString *mode) {
+    NSMutableArray<NSString *> *allThemes = [NSMutableArray array];
+    for (NSString *root in OMAOMThemeSearchRoots()) {
+        [allThemes addObjectsFromArray:OMAOMThemePathsFromRoot(root)];
+    }
+
+    NSArray<NSString *> *preferredWords = [mode isEqualToString:@"dark"] ? @[@"dark", @"night", @"black"] : @[@"light", @"clear", @"white"];
+    for (NSString *path in allThemes) {
+        NSString *name = path.lastPathComponent.lowercaseString;
+        if (OMAOMPNGFileCountAtPath(path) == 0) {
+            continue;
+        }
+        for (NSString *word in preferredWords) {
+            if ([name containsString:word]) {
+                return path;
+            }
+        }
+    }
+
+    for (NSString *path in allThemes) {
+        if (OMAOMPNGFileCountAtPath(path) > 0) {
+            return path;
+        }
+    }
+    return nil;
+}
+
+static NSString *OMAOMThemePathForMode(NSString *mode, NSString *themeKey) {
+    NSString *selected = OMAOMStringPreference(themeKey, OMAOMDefaultPathForKey(themeKey));
+    if (OMAOMPNGFileCountAtPath(selected) > 0) {
+        OMAOMSetDiagnosticValue(@"ThemeSource", @"selected");
+        return selected;
+    }
+
+    NSString *fallback = OMAOMFallbackThemePathForMode(mode);
+    if (fallback.length) {
+        OMAOMSetDiagnosticValue(@"ThemeSource", @"fallback");
+        OMAOMSetDiagnosticValue(@"FallbackThemePath", fallback);
+        return fallback;
+    }
+
+    OMAOMSetDiagnosticValue(@"ThemeSource", @"empty");
+    return selected;
 }
 
 static BOOL OMAOMCopyDirectory(NSString *source, NSString *destination) {
@@ -86,20 +158,15 @@ static void OMAOMApplyCurrentModeProbe(void) {
 
     NSString *mode = OMAOMLastDetectedMode();
     NSString *themeKey = [mode isEqualToString:@"dark"] ? @"DarkIconTheme" : @"LightIconTheme";
-    NSString *themePath = OMAOMStringPreference(themeKey, OMAOMDefaultPathForKey(themeKey));
+    NSString *themePath = OMAOMThemePathForMode(mode, themeKey);
 
     OMAOMSetDiagnosticValue(@"LastApplyAt", OMAOMNowNumber());
     OMAOMSetDiagnosticValue(@"LastMode", mode);
     OMAOMSetDiagnosticValue(@"ThemeKey", themeKey);
     OMAOMSetDiagnosticValue(@"ThemePath", themePath);
     OMAOMSetDiagnosticValue(@"ThemePNGCount", @(OMAOMPNGFileCountAtPath(themePath)));
-    OMAOMSetDiagnosticValue(@"LastWallpaperResult", @"disabled in 1.7 probe");
-    OMAOMSetDiagnosticValue(@"ProofWallpaperResult", @"disabled in 1.7 probe");
-    OMAOMSetDiagnosticValue(@"IconHits", @0);
-    OMAOMSetDiagnosticValue(@"IconMisses", @0);
-    OMAOMSetDiagnosticValue(@"LastBundle", @"disabled in 1.7 probe");
-    OMAOMSetDiagnosticValue(@"LastIconPath", @"disabled in 1.7 probe");
-    OMAOMSetDiagnosticValue(@"LastIconMiss", @"disabled in 1.7 probe");
+    OMAOMSetDiagnosticValue(@"LastWallpaperResult", @"disabled in 1.8 icons-only");
+    OMAOMSetDiagnosticValue(@"ProofWallpaperResult", @"disabled in 1.8 icons-only");
     OMAOMSetDiagnosticValue(@"WindowCount", @0);
     OMAOMSetDiagnosticValue(@"IconContainerCount", @0);
 
@@ -121,9 +188,102 @@ static void OMAOMApplyCurrentModeProbe(void) {
 }
 
 static void OMAOMDarwinCallback(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo) {
-    OMAOMDebugEvent(@"probe notification received");
+    OMAOMDebugEvent(@"icons-only notification received");
     OMAOMApplyCurrentModeProbe();
 }
+
+static NSString *OMAOMBundleIdentifierForIcon(id icon) {
+    NSArray<NSString *> *selectors = @[@"applicationBundleID", @"bundleIdentifier", @"displayIdentifier", @"leafIdentifier", @"nodeIdentifier"];
+    for (NSString *selectorName in selectors) {
+        SEL selector = NSSelectorFromString(selectorName);
+        if (![icon respondsToSelector:selector]) {
+            continue;
+        }
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+        id value = [icon performSelector:selector];
+#pragma clang diagnostic pop
+        if ([value isKindOfClass:NSString.class] && [value length]) {
+            return value;
+        }
+    }
+
+    NSArray<NSString *> *keys = @[@"applicationBundleID", @"bundleIdentifier", @"displayIdentifier", @"leafIdentifier", @"_applicationBundleID"];
+    for (NSString *key in keys) {
+        @try {
+            id value = [icon valueForKey:key];
+            if ([value isKindOfClass:NSString.class] && [value length]) {
+                return value;
+            }
+        } @catch (__unused NSException *exception) {
+        }
+    }
+    return nil;
+}
+
+static UIImage *OMAOMImageForBundleIdentifier(NSString *bundleIdentifier) {
+    if (!OMAOMBoolPreference(@"Enabled", YES) || !bundleIdentifier.length) {
+        return nil;
+    }
+
+    OMAOMSetDiagnosticValue(@"LastBundle", bundleIdentifier);
+    NSString *activeThemePath = OMAOMStringPreference(@"ActiveThemePath", OMAOMActiveIconsPath());
+    NSString *path = OMAOMExistingIconPathForBundleIdentifier(bundleIdentifier, activeThemePath);
+    if (!path) {
+        path = OMAOMExistingIconPathForBundleIdentifier(bundleIdentifier, OMAOMActiveIconsPath());
+    }
+    if (!path) {
+        OMAOMIconMissCount++;
+        OMAOMSetDiagnosticValue(@"IconMisses", @(OMAOMIconMissCount));
+        OMAOMSetDiagnosticValue(@"LastIconMiss", [NSString stringWithFormat:@"%@ in %@", bundleIdentifier, activeThemePath ?: @""]);
+        return nil;
+    }
+
+    NSData *data = [NSData dataWithContentsOfFile:path];
+    if (!data.length) {
+        OMAOMIconMissCount++;
+        OMAOMSetDiagnosticValue(@"IconMisses", @(OMAOMIconMissCount));
+        OMAOMSetDiagnosticValue(@"LastIconMiss", [NSString stringWithFormat:@"empty image: %@", path]);
+        return nil;
+    }
+
+    UIImage *image = [UIImage imageWithData:data scale:UIScreen.mainScreen.scale];
+    if (!image) {
+        OMAOMIconMissCount++;
+        OMAOMSetDiagnosticValue(@"IconMisses", @(OMAOMIconMissCount));
+        OMAOMSetDiagnosticValue(@"LastIconMiss", [NSString stringWithFormat:@"decode failed: %@", path]);
+        return nil;
+    }
+
+    OMAOMIconHitCount++;
+    OMAOMSetDiagnosticValue(@"IconHits", @(OMAOMIconHitCount));
+    OMAOMSetDiagnosticValue(@"LastIconPath", path);
+    return image;
+}
+
+static UIImage *OMAOMImageForIcon(id icon) {
+    return OMAOMImageForBundleIdentifier(OMAOMBundleIdentifierForIcon(icon));
+}
+
+%hook SBApplicationIcon
+
+- (id)getIconImage:(int)arg1 {
+    UIImage *image = OMAOMImageForIcon(self);
+    return image ?: %orig;
+}
+
+- (id)getCachedIconImage:(int)arg1 {
+    UIImage *image = OMAOMImageForIcon(self);
+    return image ?: %orig;
+}
+
+- (id)getUnmaskedIconImage:(int)arg1 {
+    UIImage *image = OMAOMImageForIcon(self);
+    return image ?: %orig;
+}
+
+%end
 
 %ctor {
     @autoreleasepool {
@@ -136,7 +296,7 @@ static void OMAOMDarwinCallback(CFNotificationCenterRef center, void *observer, 
             OMAOMSetDiagnosticValue(@"EngineLoaded", @"YES");
             OMAOMSetDiagnosticValue(@"LoadedAt", OMAOMNowNumber());
             OMAOMSetDiagnosticValue(@"HostBundle", NSBundle.mainBundle.bundleIdentifier ?: @"");
-            OMAOMDebugEvent(@"1.7 probe engine loaded");
+            OMAOMDebugEvent(@"1.8 icons-only engine loaded");
             CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, OMAOMDarwinCallback, (__bridge CFStringRef)OMAOMApplyNotification, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
             CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, OMAOMDarwinCallback, (__bridge CFStringRef)OMAOMPreferencesChangedNotification, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
             OMAOMApplyCurrentModeProbe();
