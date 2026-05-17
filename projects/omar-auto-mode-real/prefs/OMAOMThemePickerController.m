@@ -24,15 +24,21 @@
 
 - (void)reloadThemes {
     OMAOMEnsureDirectories();
-    NSString *root = OMAOMIconThemesPath();
-    NSArray<NSString *> *names = [NSFileManager.defaultManager contentsOfDirectoryAtPath:root error:nil] ?: @[];
     NSMutableArray<NSString *> *paths = [NSMutableArray array];
+    NSArray<NSString *> *roots = @[
+        OMAOMIconThemesPath(),
+        @"/var/jb/Library/Themes",
+        @"/Library/Themes",
+    ];
 
-    for (NSString *name in [names sortedArrayUsingSelector:@selector(localizedCaseInsensitiveCompare:)]) {
-        NSString *path = [root stringByAppendingPathComponent:name];
-        BOOL isDirectory = NO;
-        if ([NSFileManager.defaultManager fileExistsAtPath:path isDirectory:&isDirectory] && isDirectory) {
-            [paths addObject:path];
+    for (NSString *root in roots) {
+        NSArray<NSString *> *names = [NSFileManager.defaultManager contentsOfDirectoryAtPath:root error:nil] ?: @[];
+        for (NSString *name in [names sortedArrayUsingSelector:@selector(localizedCaseInsensitiveCompare:)]) {
+            NSString *path = [root stringByAppendingPathComponent:name];
+            BOOL isDirectory = NO;
+            if ([NSFileManager.defaultManager fileExistsAtPath:path isDirectory:&isDirectory] && isDirectory && ![paths containsObject:path]) {
+                [paths addObject:path];
+            }
         }
     }
 
@@ -52,7 +58,7 @@
 
     if (!self.themePaths.count) {
         cell.textLabel.text = @"No Themes Found";
-        cell.detailTextLabel.text = OMAOMIconThemesPath();
+        cell.detailTextLabel.text = @"Put themes in OmarAutoMode/IconThemes or /var/jb/Library/Themes";
         cell.selectionStyle = UITableViewCellSelectionStyleNone;
         return cell;
     }
@@ -79,4 +85,3 @@
 }
 
 @end
-

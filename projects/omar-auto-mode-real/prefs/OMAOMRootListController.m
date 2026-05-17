@@ -24,6 +24,11 @@ extern char **environ;
     OMAOMEnsureDirectories();
 }
 
+- (void)viewWillAppear:(BOOL)animated {
+    [super viewWillAppear:animated];
+    [self reloadSpecifiers];
+}
+
 - (id)readPreferenceValue:(PSSpecifier *)specifier {
     NSString *key = [specifier propertyForKey:@"key"];
     id value = key ? OMAOMPreference(key) : nil;
@@ -41,6 +46,55 @@ extern char **environ;
 - (NSString *)currentModeValue {
     NSString *lastMode = OMAOMStringPreference(@"LastAppliedMode", @"Not Applied");
     return lastMode.capitalizedString;
+}
+
+- (NSString *)lightThemeValue {
+    return [self themeValueForKey:@"LightIconTheme"];
+}
+
+- (NSString *)darkThemeValue {
+    return [self themeValueForKey:@"DarkIconTheme"];
+}
+
+- (NSString *)lightHomeWallpaperValue {
+    return [self wallpaperValueForKey:@"LightHomeWallpaper"];
+}
+
+- (NSString *)lightLockWallpaperValue {
+    return [self wallpaperValueForKey:@"LightLockWallpaper"];
+}
+
+- (NSString *)darkHomeWallpaperValue {
+    return [self wallpaperValueForKey:@"DarkHomeWallpaper"];
+}
+
+- (NSString *)darkLockWallpaperValue {
+    return [self wallpaperValueForKey:@"DarkLockWallpaper"];
+}
+
+- (NSString *)themesFolderValue {
+    return OMAOMIconThemesPath();
+}
+
+- (NSString *)wallpapersFolderValue {
+    return OMAOMWallpapersPath();
+}
+
+- (NSString *)themeValueForKey:(NSString *)key {
+    NSString *path = OMAOMStringPreference(key, OMAOMDefaultPathForKey(key));
+    BOOL isDirectory = NO;
+    if ([NSFileManager.defaultManager fileExistsAtPath:path isDirectory:&isDirectory] && isDirectory) {
+        return path.lastPathComponent;
+    }
+    return @"Not Set";
+}
+
+- (NSString *)wallpaperValueForKey:(NSString *)key {
+    NSString *path = OMAOMStringPreference(key, OMAOMDefaultPathForKey(key));
+    if ([NSFileManager.defaultManager fileExistsAtPath:path]) {
+        return path.lastPathComponent;
+    }
+    return @"Not Set";
 }
 
 - (void)pickLightTheme {
@@ -75,6 +129,11 @@ extern char **environ;
 - (void)pickWallpaperForKey:(NSString *)key {
     self.pendingWallpaperKey = key;
 
+    if (![UIImagePickerController isSourceTypeAvailable:UIImagePickerControllerSourceTypePhotoLibrary]) {
+        [self showMessageWithTitle:@"Photos Unavailable" message:@"The photo library picker is not available right now."];
+        return;
+    }
+
     UIImagePickerController *picker = [UIImagePickerController new];
     picker.sourceType = UIImagePickerControllerSourceTypePhotoLibrary;
     picker.delegate = self;
@@ -107,8 +166,9 @@ extern char **environ;
 }
 
 - (void)applyNow {
-    OMAOMPostDarwinNotification(OMAOMApplyNotification);
     OMAOMSetPreference(@"ManualApplyRequestedAt", @([[NSDate date] timeIntervalSince1970]));
+    OMAOMPostDarwinNotification(OMAOMApplyNotification);
+    [self showMessageWithTitle:@"Apply Requested" message:@"Omar Auto Mode is applying the matching setup for the current iOS appearance. Respring if cached icons do not refresh immediately."];
 }
 
 - (void)respring {
@@ -138,6 +198,14 @@ extern char **environ;
         posix_spawn(&pid, command.fileSystemRepresentation, NULL, NULL, (char *const *)argv, environ);
         return;
     }
+}
+
+- (void)showMessageWithTitle:(NSString *)title message:(NSString *)message {
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:title
+                                                                   message:message
+                                                            preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+    [self presentViewController:alert animated:YES completion:nil];
 }
 
 @end

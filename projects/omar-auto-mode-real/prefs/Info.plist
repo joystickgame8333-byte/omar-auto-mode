@@ -20,6 +20,7 @@
 	<string>1.0</string>
 	<key>NSPrincipalClass</key>
 	<string>OMAOMRootListController</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Omar Auto Mode uses the photo library so you can choose light and dark wallpapers.</string>
 </dict>
 </plist>
-

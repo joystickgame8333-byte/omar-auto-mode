@@ -14,7 +14,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install Theos
         run: |
-          brew install ldid xz make
+          brew install dpkg ldid xz make
           git clone --recursive https://github.com/theos/theos.git "$HOME/theos"
           echo "THEOS=$HOME/theos" >> "$GITHUB_ENV"
       - name: Build

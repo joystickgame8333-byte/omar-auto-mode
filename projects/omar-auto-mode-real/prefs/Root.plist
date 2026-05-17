@@ -10,7 +10,7 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>footerText</key>
-			<string>Automatic mode switches icon and wallpaper assets when iOS changes between light and dark appearance.</string>
+			<string>Choose one icon theme and two wallpapers for each system appearance. Omar Auto Mode applies the matching set when iOS changes between light and dark mode.</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -22,7 +22,7 @@
 			<key>key</key>
 			<string>Enabled</string>
 			<key>label</key>
-			<string>Enabled</string>
+			<string>Automatic Switching</string>
 			<key>PostNotification</key>
 			<string>com.omaralasam.automode/preferences.changed</string>
 		</dict>
@@ -38,7 +38,17 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>label</key>
-			<string>Light Setup</string>
+			<string>Light Mode</string>
+			<key>footerText</key>
+			<string>Use a white/day icon set and bright wallpapers here.</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSTitleValueCell</string>
+			<key>label</key>
+			<string>Icon Theme</string>
+			<key>getter</key>
+			<string>lightThemeValue</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -46,7 +56,15 @@
 			<key>action</key>
 			<string>pickLightTheme</string>
 			<key>label</key>
-			<string>Pick Light Icon Theme</string>
+			<string>Choose Light Icon Theme</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSTitleValueCell</string>
+			<key>label</key>
+			<string>Home Wallpaper</string>
+			<key>getter</key>
+			<string>lightHomeWallpaperValue</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -54,7 +72,15 @@
 			<key>action</key>
 			<string>pickLightHomeWallpaper</string>
 			<key>label</key>
-			<string>Pick Light Home Wallpaper</string>
+			<string>Choose Light Home Wallpaper</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSTitleValueCell</string>
+			<key>label</key>
+			<string>Lock Wallpaper</string>
+			<key>getter</key>
+			<string>lightLockWallpaperValue</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -62,13 +88,23 @@
 			<key>action</key>
 			<string>pickLightLockWallpaper</string>
 			<key>label</key>
-			<string>Pick Light Lock Wallpaper</string>
+			<string>Choose Light Lock Wallpaper</string>
 		</dict>
 		<dict>
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>label</key>
-			<string>Dark Setup</string>
+			<string>Dark Mode</string>
+			<key>footerText</key>
+			<string>Use the matching night icon set and darker wallpapers here.</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSTitleValueCell</string>
+			<key>label</key>
+			<string>Icon Theme</string>
+			<key>getter</key>
+			<string>darkThemeValue</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -76,7 +112,15 @@
 			<key>action</key>
 			<string>pickDarkTheme</string>
 			<key>label</key>
-			<string>Pick Dark Icon Theme</string>
+			<string>Choose Dark Icon Theme</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSTitleValueCell</string>
+			<key>label</key>
+			<string>Home Wallpaper</string>
+			<key>getter</key>
+			<string>darkHomeWallpaperValue</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -84,7 +128,15 @@
 			<key>action</key>
 			<string>pickDarkHomeWallpaper</string>
 			<key>label</key>
-			<string>Pick Dark Home Wallpaper</string>
+			<string>Choose Dark Home Wallpaper</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSTitleValueCell</string>
+			<key>label</key>
+			<string>Lock Wallpaper</string>
+			<key>getter</key>
+			<string>darkLockWallpaperValue</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -92,13 +144,15 @@
 			<key>action</key>
 			<string>pickDarkLockWallpaper</string>
 			<key>label</key>
-			<string>Pick Dark Lock Wallpaper</string>
+			<string>Choose Dark Lock Wallpaper</string>
 		</dict>
 		<dict>
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>label</key>
 			<string>Actions</string>
+			<key>footerText</key>
+			<string>Apply Now switches to the current iOS appearance immediately. Respring reloads SpringBoard so icon cache changes are visible.</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -116,7 +170,28 @@
 			<key>label</key>
 			<string>Respring</string>
 		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>Storage</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSTitleValueCell</string>
+			<key>label</key>
+			<string>Themes Folder</string>
+			<key>getter</key>
+			<string>themesFolderValue</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSTitleValueCell</string>
+			<key>label</key>
+			<string>Wallpapers Folder</string>
+			<key>getter</key>
+			<string>wallpapersFolderValue</string>
+		</dict>
 	</array>
 </dict>
 </plist>
-

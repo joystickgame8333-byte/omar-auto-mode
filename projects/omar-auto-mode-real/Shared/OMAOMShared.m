@@ -33,14 +33,61 @@ NSString *OMAOMDefaultPathForKey(NSString *key) {
     return defaults[key] ?: @"";
 }
 
+NSArray<NSString *> *OMAOMCandidateIconPathsForBundleIdentifier(NSString *bundleIdentifier, NSString *themePath) {
+    if (!bundleIdentifier.length || !themePath.length) {
+        return @[];
+    }
+
+    NSString *iconBundles = [themePath stringByAppendingPathComponent:@"IconBundles"];
+    NSString *bundleFolder = [[themePath stringByAppendingPathComponent:@"Bundles"] stringByAppendingPathComponent:bundleIdentifier];
+
+    return @[
+        [iconBundles stringByAppendingPathComponent:[NSString stringWithFormat:@"%@-large.png", bundleIdentifier]],
+        [iconBundles stringByAppendingPathComponent:[NSString stringWithFormat:@"%@@3x.png", bundleIdentifier]],
+        [iconBundles stringByAppendingPathComponent:[NSString stringWithFormat:@"%@@2x.png", bundleIdentifier]],
+        [iconBundles stringByAppendingPathComponent:[NSString stringWithFormat:@"%@.png", bundleIdentifier]],
+        [bundleFolder stringByAppendingPathComponent:@"AppIcon60x60@3x.png"],
+        [bundleFolder stringByAppendingPathComponent:@"AppIcon60x60@2x.png"],
+        [bundleFolder stringByAppendingPathComponent:@"AppIcon@3x.png"],
+        [bundleFolder stringByAppendingPathComponent:@"AppIcon@2x.png"],
+        [bundleFolder stringByAppendingPathComponent:@"AppIcon.png"],
+        [bundleFolder stringByAppendingPathComponent:@"Icon@3x.png"],
+        [bundleFolder stringByAppendingPathComponent:@"Icon@2x.png"],
+        [bundleFolder stringByAppendingPathComponent:@"Icon.png"],
+        [themePath stringByAppendingPathComponent:[NSString stringWithFormat:@"%@-large.png", bundleIdentifier]],
+        [themePath stringByAppendingPathComponent:[NSString stringWithFormat:@"%@.png", bundleIdentifier]],
+    ];
+}
+
+NSString *OMAOMExistingIconPathForBundleIdentifier(NSString *bundleIdentifier, NSString *themePath) {
+    NSFileManager *fm = NSFileManager.defaultManager;
+    for (NSString *path in OMAOMCandidateIconPathsForBundleIdentifier(bundleIdentifier, themePath)) {
+        BOOL isDirectory = NO;
+        if ([fm fileExistsAtPath:path isDirectory:&isDirectory] && !isDirectory) {
+            return path;
+        }
+    }
+    return nil;
+}
+
 id OMAOMPreference(NSString *key) {
     return CFBridgingRelease(CFPreferencesCopyAppValue((__bridge CFStringRef)key, (__bridge CFStringRef)OMAOMPreferencesIdentifier));
 }
 
-void OMAOMSetPreference(NSString *key, id value) {
+static void OMAOMWritePreference(NSString *key, id value, BOOL notify) {
     CFPreferencesSetAppValue((__bridge CFStringRef)key, (__bridge CFPropertyListRef)value, (__bridge CFStringRef)OMAOMPreferencesIdentifier);
     CFPreferencesAppSynchronize((__bridge CFStringRef)OMAOMPreferencesIdentifier);
-    OMAOMPostDarwinNotification(OMAOMPreferencesChangedNotification);
+    if (notify) {
+        OMAOMPostDarwinNotification(OMAOMPreferencesChangedNotification);
+    }
+}
+
+void OMAOMSetPreference(NSString *key, id value) {
+    OMAOMWritePreference(key, value, YES);
+}
+
+void OMAOMSetPreferenceSilently(NSString *key, id value) {
+    OMAOMWritePreference(key, value, NO);
 }
 
 BOOL OMAOMBoolPreference(NSString *key, BOOL fallback) {
@@ -71,4 +118,3 @@ void OMAOMEnsureDirectories(void) {
 void OMAOMPostDarwinNotification(NSString *name) {
     CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge CFStringRef)name, NULL, NULL, true);
 }
-
