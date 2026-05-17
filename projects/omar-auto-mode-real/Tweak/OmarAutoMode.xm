@@ -7,9 +7,27 @@
 @interface SBIconImageView : UIView
 @end
 
+@interface SBIconView : UIView
+@end
+
+static void OMAOMRefreshAllIconViews(void);
+
 static NSString *OMAOMLastDetectedMode(void) {
     if (@available(iOS 13.0, *)) {
-        UIUserInterfaceStyle style = UIScreen.mainScreen.traitCollection.userInterfaceStyle;
+        UIUserInterfaceStyle style = UIUserInterfaceStyleUnspecified;
+        for (UIWindow *window in UIApplication.sharedApplication.windows) {
+            UIUserInterfaceStyle windowStyle = window.traitCollection.userInterfaceStyle;
+            if (windowStyle == UIUserInterfaceStyleDark || windowStyle == UIUserInterfaceStyleLight) {
+                style = windowStyle;
+                break;
+            }
+        }
+        if (style == UIUserInterfaceStyleUnspecified) {
+            style = UITraitCollection.currentTraitCollection.userInterfaceStyle;
+        }
+        if (style == UIUserInterfaceStyleUnspecified) {
+            style = UIScreen.mainScreen.traitCollection.userInterfaceStyle;
+        }
         return style == UIUserInterfaceStyleDark ? @"dark" : @"light";
     }
     return @"light";
@@ -110,6 +128,7 @@ static void OMAOMApplyMode(NSString *mode) {
     NSString *lockKey = [mode isEqualToString:@"dark"] ? @"DarkLockWallpaper" : @"LightLockWallpaper";
     OMAOMApplyWallpaperAtPath(OMAOMStringPreference(homeKey, OMAOMDefaultPathForKey(homeKey)), 1);
     OMAOMApplyWallpaperAtPath(OMAOMStringPreference(lockKey, OMAOMDefaultPathForKey(lockKey)), 2);
+    OMAOMRefreshAllIconViews();
 }
 
 static void OMAOMApplyCurrentMode(void) {
@@ -117,6 +136,22 @@ static void OMAOMApplyCurrentMode(void) {
 }
 
 static NSString *OMAOMBundleIdentifierForIcon(id icon) {
+    NSArray<NSString *> *selectors = @[@"applicationBundleID", @"bundleIdentifier", @"displayIdentifier", @"leafIdentifier", @"nodeIdentifier"];
+    for (NSString *selectorName in selectors) {
+        SEL selector = NSSelectorFromString(selectorName);
+        if (![icon respondsToSelector:selector]) {
+            continue;
+        }
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+        id value = [icon performSelector:selector];
+#pragma clang diagnostic pop
+        if ([value isKindOfClass:NSString.class] && [value length]) {
+            return value;
+        }
+    }
+
     NSArray<NSString *> *keys = @[@"applicationBundleID", @"bundleIdentifier", @"displayIdentifier", @"leafIdentifier", @"_applicationBundleID"];
     for (NSString *key in keys) {
         @try {
@@ -155,6 +190,68 @@ static UIImage *OMAOMImageForIcon(id icon) {
     return OMAOMImageForBundleIdentifier(OMAOMBundleIdentifierForIcon(icon));
 }
 
+static id OMAOMIconFromView(UIView *view) {
+    NSArray<NSString *> *keys = @[@"icon", @"_icon"];
+    for (NSString *key in keys) {
+        @try {
+            id icon = [view valueForKey:key];
+            if (icon) {
+                return icon;
+            }
+        } @catch (__unused NSException *exception) {
+        }
+    }
+    return nil;
+}
+
+static void OMAOMApplyImageToImageViews(UIView *view, UIImage *image) {
+    if (!view || !image) {
+        return;
+    }
+
+    if ([view isKindOfClass:UIImageView.class]) {
+        ((UIImageView *)view).image = image;
+    }
+
+    for (UIView *subview in view.subviews) {
+        OMAOMApplyImageToImageViews(subview, image);
+    }
+}
+
+static void OMAOMRefreshIconContainer(UIView *view) {
+    id icon = OMAOMIconFromView(view);
+    UIImage *image = OMAOMImageForIcon(icon);
+    if (image) {
+        OMAOMApplyImageToImageViews(view, image);
+    }
+}
+
+static void OMAOMRefreshIconViewsInView(UIView *view) {
+    if (!view) {
+        return;
+    }
+
+    if ([view isKindOfClass:NSClassFromString(@"SBIconView")] || [view isKindOfClass:NSClassFromString(@"SBIconImageView")]) {
+        OMAOMRefreshIconContainer(view);
+    }
+
+    for (UIView *subview in view.subviews) {
+        OMAOMRefreshIconViewsInView(subview);
+    }
+}
+
+static void OMAOMRefreshAllIconViews(void) {
+    if (!OMAOMBoolPreference(@"Enabled", YES)) {
+        return;
+    }
+
+    dispatch_async(dispatch_get_main_queue(), ^{
+        for (UIWindow *window in UIApplication.sharedApplication.windows) {
+            OMAOMRefreshIconViewsInView(window);
+        }
+    });
+}
+
 static void OMAOMDarwinCallback(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo) {
     OMAOMApplyCurrentMode();
 }
@@ -183,8 +280,8 @@ static void OMAOMDarwinCallback(CFNotificationCenterRef center, void *observer, 
 - (void)setIcon:(id)icon {
     %orig;
     UIImage *image = OMAOMImageForIcon(icon);
-    if (image && [self respondsToSelector:@selector(setImage:)]) {
-        [(id)self setImage:image];
+    if (image) {
+        OMAOMApplyImageToImageViews(self, image);
     }
 }
 
@@ -198,9 +295,35 @@ static void OMAOMDarwinCallback(CFNotificationCenterRef center, void *observer, 
     }
 
     UIImage *image = OMAOMImageForIcon(icon);
-    if (image && [self respondsToSelector:@selector(setImage:)]) {
-        [(id)self setImage:image];
+    if (image) {
+        OMAOMApplyImageToImageViews(self, image);
     }
+}
+
+%end
+
+%hook SBIconView
+
+- (void)setIcon:(id)icon {
+    %orig;
+    UIImage *image = OMAOMImageForIcon(icon);
+    if (image) {
+        OMAOMApplyImageToImageViews(self, image);
+    }
+}
+
+- (void)layoutSubviews {
+    %orig;
+    OMAOMRefreshIconContainer(self);
+}
+
+%end
+
+%hook UIWindow
+
+- (void)traitCollectionDidChange:(UITraitCollection *)previousTraitCollection {
+    %orig;
+    OMAOMApplyCurrentMode();
 }
 
 %end
@@ -218,6 +341,8 @@ static void OMAOMDarwinCallback(CFNotificationCenterRef center, void *observer, 
         NSString *last = OMAOMStringPreference(@"LastAppliedMode", @"");
         if (![mode isEqualToString:last]) {
             OMAOMApplyMode(mode);
+        } else {
+            OMAOMRefreshAllIconViews();
         }
     }];
 
