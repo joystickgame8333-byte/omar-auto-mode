@@ -22,7 +22,7 @@ NSString *OMAOMWallpapersPath(void) {
 }
 
 NSString *OMAOMProofLockWallpaperPath(void) {
-    return [OMAOMWallpapersPath() stringByAppendingPathComponent:@"Proof/Lock.png"];
+    return @"/var/jb/Library/Application Support/OmarAutoMode/ProofLock.png";
 }
 
 NSString *OMAOMDefaultPathForKey(NSString *key) {
