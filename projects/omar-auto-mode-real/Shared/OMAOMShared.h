@@ -14,6 +14,7 @@ NSString *OMAOMRootPath(void);
 NSString *OMAOMActiveIconsPath(void);
 NSString *OMAOMIconThemesPath(void);
 NSString *OMAOMWallpapersPath(void);
+NSString *OMAOMProofLockWallpaperPath(void);
 NSString *OMAOMDefaultPathForKey(NSString *key);
 NSArray<NSString *> *OMAOMCandidateIconPathsForBundleIdentifier(NSString *bundleIdentifier, NSString *themePath);
 NSString *_Nullable OMAOMExistingIconPathForBundleIdentifier(NSString *bundleIdentifier, NSString *themePath);
@@ -21,6 +22,9 @@ NSString *_Nullable OMAOMExistingIconPathForBundleIdentifier(NSString *bundleIde
 id _Nullable OMAOMPreference(NSString *key);
 void OMAOMSetPreference(NSString *key, id value);
 void OMAOMSetPreferenceSilently(NSString *key, id value);
+void OMAOMSetDiagnosticValue(NSString *key, id value);
+void OMAOMSetDiagnosticError(NSString *value);
+void OMAOMClearDiagnosticError(void);
 BOOL OMAOMBoolPreference(NSString *key, BOOL fallback);
 NSString *OMAOMStringPreference(NSString *key, NSString *fallback);
 

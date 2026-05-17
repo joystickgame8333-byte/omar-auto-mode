@@ -48,6 +48,89 @@ extern char **environ;
     return lastMode.capitalizedString;
 }
 
+- (NSString *)formattedDebugTimeForKey:(NSString *)key {
+    id value = OMAOMPreference(key);
+    NSTimeInterval interval = [value respondsToSelector:@selector(doubleValue)] ? [value doubleValue] : 0;
+    if (interval <= 0) {
+        return @"Never";
+    }
+
+    NSDateFormatter *formatter = [NSDateFormatter new];
+    formatter.dateStyle = NSDateFormatterNoStyle;
+    formatter.timeStyle = NSDateFormatterMediumStyle;
+    return [formatter stringFromDate:[NSDate dateWithTimeIntervalSince1970:interval]];
+}
+
+- (NSString *)debugStringForKey:(NSString *)key fallback:(NSString *)fallback {
+    id value = OMAOMPreference(key);
+    if ([value isKindOfClass:NSString.class] && [value length]) {
+        return value;
+    }
+    if ([value respondsToSelector:@selector(stringValue)]) {
+        return [value stringValue];
+    }
+    return fallback;
+}
+
+- (NSString *)diagnosticCodeValue {
+    NSString *loaded = [self debugStringForKey:@"DebugEngineLoaded" fallback:@""];
+    if (![loaded isEqualToString:@"YES"]) {
+        return @"E-INJECT-NOLOAD";
+    }
+
+    NSString *error = [self debugStringForKey:@"DebugLastError" fallback:@""];
+    if (error.length) {
+        if ([error localizedCaseInsensitiveContainsString:@"Wallpaper"]) {
+            return @"E-WALLPAPER";
+        }
+        if ([error localizedCaseInsensitiveContainsString:@"Theme"]) {
+            return @"E-THEME";
+        }
+        return @"E-RUNTIME";
+    }
+
+    NSInteger hits = [OMAOMPreference(@"DebugIconHits") integerValue];
+    NSInteger misses = [OMAOMPreference(@"DebugIconMisses") integerValue];
+    if (misses > 0 && hits == 0) {
+        return @"E-ICON-NOTFOUND";
+    }
+
+    return @"OK-ENGINE";
+}
+
+- (NSString *)engineLoadedValue {
+    NSString *loaded = [self debugStringForKey:@"DebugEngineLoaded" fallback:@"NO"];
+    NSString *time = [self formattedDebugTimeForKey:@"DebugLoadedAt"];
+    return [NSString stringWithFormat:@"%@ %@", loaded, time];
+}
+
+- (NSString *)lastEventValue {
+    NSString *event = [self debugStringForKey:@"DebugLastEvent" fallback:@"No event"];
+    NSString *time = [self formattedDebugTimeForKey:@"DebugLastEventAt"];
+    return [NSString stringWithFormat:@"%@ - %@", event, time];
+}
+
+- (NSString *)lastErrorValue {
+    return [self debugStringForKey:@"DebugLastError" fallback:@"None"];
+}
+
+- (NSString *)debugThemeValue {
+    NSString *path = [self debugStringForKey:@"DebugThemePath" fallback:@"Not Set"];
+    NSString *count = [self debugStringForKey:@"DebugThemePNGCount" fallback:@"0"];
+    return [NSString stringWithFormat:@"%@ - %@ png", path.lastPathComponent.length ? path.lastPathComponent : path, count];
+}
+
+- (NSString *)debugIconValue {
+    NSString *hits = [self debugStringForKey:@"DebugIconHits" fallback:@"0"];
+    NSString *misses = [self debugStringForKey:@"DebugIconMisses" fallback:@"0"];
+    NSString *bundle = [self debugStringForKey:@"DebugLastBundle" fallback:@"No bundle"];
+    return [NSString stringWithFormat:@"hit %@ / miss %@ - %@", hits, misses, bundle];
+}
+
+- (NSString *)debugWallpaperValue {
+    return [self debugStringForKey:@"DebugLastWallpaperResult" fallback:@"Not called"];
+}
+
 - (NSString *)lightThemeValue {
     return [self themeValueForKey:@"LightIconTheme"];
 }
@@ -169,6 +252,39 @@ extern char **environ;
     OMAOMSetPreference(@"ManualApplyRequestedAt", @([[NSDate date] timeIntervalSince1970]));
     OMAOMPostDarwinNotification(OMAOMApplyNotification);
     [self showMessageWithTitle:@"Apply Requested" message:@"Omar Auto Mode is applying the matching setup for the current iOS appearance. Respring if cached icons do not refresh immediately."];
+}
+
+- (void)runProofLockTest {
+    OMAOMSetPreferenceSilently(@"ProofLockWallpaperApplied", @NO);
+    OMAOMSetPreferenceSilently(@"ProofLockRequestedAt", @([[NSDate date] timeIntervalSince1970]));
+    OMAOMSetDiagnosticValue(@"LastEvent", @"proof request sent from Settings");
+    OMAOMSetDiagnosticValue(@"ProofWallpaperPath", OMAOMProofLockWallpaperPath());
+    OMAOMPostDarwinNotification(OMAOMApplyNotification);
+    [self showMessageWithTitle:@"Proof Requested" message:@"A proof lock-screen wallpaper request was sent to SpringBoard. Open Diagnostics after a few seconds to see whether the engine received it."];
+}
+
+- (void)showDiagnostics {
+    NSArray<NSString *> *lines = @[
+        [NSString stringWithFormat:@"Code: %@", [self diagnosticCodeValue]],
+        [NSString stringWithFormat:@"Engine: %@", [self engineLoadedValue]],
+        [NSString stringWithFormat:@"Event: %@", [self lastEventValue]],
+        [NSString stringWithFormat:@"Error: %@", [self lastErrorValue]],
+        [NSString stringWithFormat:@"Mode: %@", [self debugStringForKey:@"DebugLastMode" fallback:@"Unknown"]],
+        [NSString stringWithFormat:@"Theme: %@", [self debugStringForKey:@"DebugThemePath" fallback:@"Not Set"]],
+        [NSString stringWithFormat:@"Active: %@", [self debugStringForKey:@"DebugActiveThemePath" fallback:@"Not Set"]],
+        [NSString stringWithFormat:@"Theme PNGs: %@", [self debugStringForKey:@"DebugThemePNGCount" fallback:@"0"]],
+        [NSString stringWithFormat:@"Active PNGs: %@", [self debugStringForKey:@"DebugActiveThemePNGCount" fallback:@"0"]],
+        [NSString stringWithFormat:@"Icons: %@", [self debugIconValue]],
+        [NSString stringWithFormat:@"Last icon path: %@", [self debugStringForKey:@"DebugLastIconPath" fallback:@"Not Found"]],
+        [NSString stringWithFormat:@"Last miss: %@", [self debugStringForKey:@"DebugLastIconMiss" fallback:@"None"]],
+        [NSString stringWithFormat:@"Windows: %@", [self debugStringForKey:@"DebugWindowCount" fallback:@"0"]],
+        [NSString stringWithFormat:@"Icon containers: %@", [self debugStringForKey:@"DebugIconContainerCount" fallback:@"0"]],
+        [NSString stringWithFormat:@"Wallpaper: %@", [self debugWallpaperValue]],
+        [NSString stringWithFormat:@"Wallpaper path: %@", [self debugStringForKey:@"DebugLastWallpaperPath" fallback:@"Not Set"]],
+        [NSString stringWithFormat:@"Proof: %@", [self debugStringForKey:@"DebugProofWallpaperResult" fallback:@"Not called"]],
+        [NSString stringWithFormat:@"Proof path: %@", [self debugStringForKey:@"DebugProofWallpaperPath" fallback:OMAOMProofLockWallpaperPath()]],
+    ];
+    [self showMessageWithTitle:@"Diagnostics" message:[lines componentsJoinedByString:@"\n"]];
 }
 
 - (void)respring {

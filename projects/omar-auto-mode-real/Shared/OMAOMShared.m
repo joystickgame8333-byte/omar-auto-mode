@@ -21,6 +21,10 @@ NSString *OMAOMWallpapersPath(void) {
     return [OMAOMRootPath() stringByAppendingPathComponent:@"Wallpapers"];
 }
 
+NSString *OMAOMProofLockWallpaperPath(void) {
+    return [OMAOMWallpapersPath() stringByAppendingPathComponent:@"Proof/Lock.png"];
+}
+
 NSString *OMAOMDefaultPathForKey(NSString *key) {
     NSDictionary *defaults = @{
         @"LightIconTheme": [OMAOMIconThemesPath() stringByAppendingPathComponent:@"Light"],
@@ -90,6 +94,22 @@ void OMAOMSetPreferenceSilently(NSString *key, id value) {
     OMAOMWritePreference(key, value, NO);
 }
 
+void OMAOMSetDiagnosticValue(NSString *key, id value) {
+    if (!key.length) {
+        return;
+    }
+    NSString *diagnosticKey = [@"Debug" stringByAppendingString:key];
+    OMAOMSetPreferenceSilently(diagnosticKey, value ?: @"");
+}
+
+void OMAOMSetDiagnosticError(NSString *value) {
+    OMAOMSetDiagnosticValue(@"LastError", value ?: @"");
+}
+
+void OMAOMClearDiagnosticError(void) {
+    OMAOMSetDiagnosticError(@"");
+}
+
 BOOL OMAOMBoolPreference(NSString *key, BOOL fallback) {
     id value = OMAOMPreference(key);
     return value ? [value boolValue] : fallback;
@@ -109,6 +129,7 @@ void OMAOMEnsureDirectories(void) {
         [OMAOMIconThemesPath() stringByAppendingPathComponent:@"Dark"],
         [OMAOMWallpapersPath() stringByAppendingPathComponent:@"Light"],
         [OMAOMWallpapersPath() stringByAppendingPathComponent:@"Dark"],
+        [OMAOMWallpapersPath() stringByAppendingPathComponent:@"Proof"],
     ];
     for (NSString *path in paths) {
         [fm createDirectoryAtPath:path withIntermediateDirectories:YES attributes:nil error:nil];

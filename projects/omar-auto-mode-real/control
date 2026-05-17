@@ -1,6 +1,6 @@
 Package: com.omaralasam.automode
 Name: Omar Auto Mode
-Version: 1.3-rootless
+Version: 1.4-rootless
 Architecture: iphoneos-arm64
 Description: Automatic light/dark icon and wallpaper switcher for rootless jailbreaks.
 Maintainer: Omar al-Asam <omar@example.local>

@@ -11,6 +11,33 @@
 @end
 
 static void OMAOMRefreshAllIconViews(void);
+static NSInteger OMAOMIconHitCount = 0;
+static NSInteger OMAOMIconMissCount = 0;
+
+static NSNumber *OMAOMNowNumber(void) {
+    return @([[NSDate date] timeIntervalSince1970]);
+}
+
+static void OMAOMDebugEvent(NSString *event) {
+    OMAOMSetDiagnosticValue(@"LastEvent", event ?: @"");
+    OMAOMSetDiagnosticValue(@"LastEventAt", OMAOMNowNumber());
+}
+
+static NSUInteger OMAOMPNGFileCountAtPath(NSString *path) {
+    BOOL isDirectory = NO;
+    if (![NSFileManager.defaultManager fileExistsAtPath:path isDirectory:&isDirectory] || !isDirectory) {
+        return 0;
+    }
+
+    NSUInteger count = 0;
+    NSDirectoryEnumerator<NSString *> *enumerator = [NSFileManager.defaultManager enumeratorAtPath:path];
+    for (NSString *item in enumerator) {
+        if ([item.pathExtension.lowercaseString isEqualToString:@"png"]) {
+            count++;
+        }
+    }
+    return count;
+}
 
 static NSArray<UIWindow *> *OMAOMApplicationWindows(void) {
     NSMutableArray<UIWindow *> *windows = [NSMutableArray array];
@@ -68,32 +95,68 @@ static BOOL OMAOMCopyDirectory(NSString *source, NSString *destination) {
     NSFileManager *fm = NSFileManager.defaultManager;
     BOOL isDirectory = NO;
     if (![fm fileExistsAtPath:source isDirectory:&isDirectory] || !isDirectory) {
+        OMAOMSetDiagnosticError([NSString stringWithFormat:@"Theme folder missing: %@", source ?: @""]);
         return NO;
     }
 
     NSString *tmp = [destination stringByAppendingString:@".tmp"];
     [fm removeItemAtPath:tmp error:nil];
-    [fm createDirectoryAtPath:tmp withIntermediateDirectories:YES attributes:nil error:nil];
+    NSError *createError = nil;
+    if (![fm createDirectoryAtPath:tmp withIntermediateDirectories:YES attributes:nil error:&createError]) {
+        OMAOMSetDiagnosticError([NSString stringWithFormat:@"Active temp create failed: %@", createError.localizedDescription ?: @"unknown"]);
+        return NO;
+    }
 
     NSArray<NSString *> *items = [fm contentsOfDirectoryAtPath:source error:nil] ?: @[];
     for (NSString *item in items) {
         NSString *from = [source stringByAppendingPathComponent:item];
         NSString *to = [tmp stringByAppendingPathComponent:item];
-        [fm copyItemAtPath:from toPath:to error:nil];
+        NSError *copyError = nil;
+        if (![fm copyItemAtPath:from toPath:to error:&copyError]) {
+            OMAOMSetDiagnosticError([NSString stringWithFormat:@"Theme copy failed at %@: %@", item, copyError.localizedDescription ?: @"unknown"]);
+            [fm removeItemAtPath:tmp error:nil];
+            return NO;
+        }
     }
 
     [fm removeItemAtPath:destination error:nil];
-    return [fm moveItemAtPath:tmp toPath:destination error:nil];
+    NSError *moveError = nil;
+    BOOL moved = [fm moveItemAtPath:tmp toPath:destination error:&moveError];
+    if (!moved) {
+        OMAOMSetDiagnosticError([NSString stringWithFormat:@"Active theme move failed: %@", moveError.localizedDescription ?: @"unknown"]);
+    }
+    return moved;
 }
 
-static void OMAOMApplyWallpaperAtPath(NSString *path, NSInteger wallpaperMode) {
+static BOOL OMAOMInvokeIntegerSelector(id target, SEL selector, NSInteger value) {
+    NSMethodSignature *signature = [target methodSignatureForSelector:selector];
+    if (!signature) {
+        return NO;
+    }
+
+    NSInvocation *invocation = [NSInvocation invocationWithMethodSignature:signature];
+    [invocation setTarget:target];
+    [invocation setSelector:selector];
+    [invocation setArgument:&value atIndex:2];
+    [invocation invoke];
+    return YES;
+}
+
+static BOOL OMAOMApplyWallpaperAtPath(NSString *path, NSInteger wallpaperMode) {
+    OMAOMSetDiagnosticValue(@"LastWallpaperPath", path ?: @"");
+    OMAOMSetDiagnosticValue(@"LastWallpaperMode", @(wallpaperMode));
+
     if (![NSFileManager.defaultManager fileExistsAtPath:path]) {
-        return;
+        OMAOMSetDiagnosticValue(@"LastWallpaperResult", @"missing file");
+        OMAOMSetDiagnosticError([NSString stringWithFormat:@"Wallpaper missing: %@", path ?: @""]);
+        return NO;
     }
 
     UIImage *image = [UIImage imageWithContentsOfFile:path];
     if (!image) {
-        return;
+        OMAOMSetDiagnosticValue(@"LastWallpaperResult", @"image decode failed");
+        OMAOMSetDiagnosticError([NSString stringWithFormat:@"Wallpaper image decode failed: %@", path ?: @""]);
+        return NO;
     }
 
     @try {
@@ -102,7 +165,9 @@ static void OMAOMApplyWallpaperAtPath(NSString *path, NSInteger wallpaperMode) {
 
         Class wallpaperClass = NSClassFromString(@"PLStaticWallpaperImageViewController") ?: NSClassFromString(@"SBSUIWallpaperPreviewViewController");
         if (!wallpaperClass) {
-            return;
+            OMAOMSetDiagnosticValue(@"LastWallpaperResult", @"wallpaper class not found");
+            OMAOMSetDiagnosticError(@"Wallpaper API class not found");
+            return NO;
         }
 
 #pragma clang diagnostic push
@@ -123,36 +188,72 @@ static void OMAOMApplyWallpaperAtPath(NSString *path, NSInteger wallpaperMode) {
             }
         }
         if (!controller) {
-            return;
+            OMAOMSetDiagnosticValue(@"LastWallpaperResult", @"controller init failed");
+            OMAOMSetDiagnosticError(@"Wallpaper controller init failed");
+            return NO;
         }
 
         [controller setValue:@(wallpaperMode) forKey:@"wallpaperMode"];
         [controller setValue:@YES forKey:@"saveWallpaperData"];
         if ([controller respondsToSelector:@selector(setWallpaperForLocations:)]) {
-            [controller performSelector:@selector(setWallpaperForLocations:) withObject:@(wallpaperMode)];
+            if (OMAOMInvokeIntegerSelector(controller, @selector(setWallpaperForLocations:), wallpaperMode)) {
+                OMAOMSetDiagnosticValue(@"LastWallpaperResult", @"called setWallpaperForLocations");
+                return YES;
+            }
         } else if ([controller respondsToSelector:@selector(_savePhoto)]) {
             [controller performSelector:@selector(_savePhoto)];
+            OMAOMSetDiagnosticValue(@"LastWallpaperResult", @"called _savePhoto");
+            return YES;
         }
 #pragma clang diagnostic pop
-    } @catch (__unused NSException *exception) {
+        OMAOMSetDiagnosticValue(@"LastWallpaperResult", @"no supported save selector");
+        OMAOMSetDiagnosticError(@"Wallpaper save selector not found");
+    } @catch (NSException *exception) {
+        OMAOMSetDiagnosticValue(@"LastWallpaperResult", @"exception");
+        OMAOMSetDiagnosticError([NSString stringWithFormat:@"Wallpaper exception: %@", exception.reason ?: @"unknown"]);
     }
+    return NO;
+}
+
+static void OMAOMApplyProofLockWallpaperIfNeeded(void) {
+    if (OMAOMBoolPreference(@"ProofLockWallpaperApplied", NO)) {
+        return;
+    }
+
+    NSString *path = OMAOMProofLockWallpaperPath();
+    OMAOMSetDiagnosticValue(@"ProofWallpaperPath", path);
+    OMAOMDebugEvent(@"proof lock wallpaper requested");
+    BOOL applied = OMAOMApplyWallpaperAtPath(path, 2);
+    OMAOMSetDiagnosticValue(@"ProofWallpaperResult", applied ? @"called" : @"failed");
+    OMAOMSetPreferenceSilently(@"ProofLockWallpaperApplied", @(applied));
 }
 
 static void OMAOMApplyMode(NSString *mode) {
     if (!OMAOMBoolPreference(@"Enabled", YES)) {
+        OMAOMDebugEvent(@"apply skipped: disabled");
         return;
     }
 
+    OMAOMClearDiagnosticError();
+    OMAOMDebugEvent([NSString stringWithFormat:@"apply mode %@", mode ?: @""]);
+    OMAOMSetDiagnosticValue(@"LastApplyAt", OMAOMNowNumber());
+    OMAOMSetDiagnosticValue(@"LastMode", mode ?: @"");
     OMAOMEnsureDirectories();
 
     NSString *themeKey = [mode isEqualToString:@"dark"] ? @"DarkIconTheme" : @"LightIconTheme";
     NSString *themePath = OMAOMStringPreference(themeKey, OMAOMDefaultPathForKey(themeKey));
+    OMAOMSetDiagnosticValue(@"ThemeKey", themeKey);
+    OMAOMSetDiagnosticValue(@"ThemePath", themePath);
+    OMAOMSetDiagnosticValue(@"ThemePNGCount", @(OMAOMPNGFileCountAtPath(themePath)));
     if (OMAOMCopyDirectory(themePath, OMAOMActiveIconsPath())) {
         OMAOMSetPreferenceSilently(@"LastAppliedMode", mode);
         OMAOMSetPreferenceSilently(@"ActiveThemePath", OMAOMActiveIconsPath());
+        OMAOMSetDiagnosticValue(@"ActiveThemePath", OMAOMActiveIconsPath());
+        OMAOMSetDiagnosticValue(@"ActiveThemePNGCount", @(OMAOMPNGFileCountAtPath(OMAOMActiveIconsPath())));
     } else if ([NSFileManager.defaultManager fileExistsAtPath:themePath]) {
         OMAOMSetPreferenceSilently(@"LastAppliedMode", mode);
         OMAOMSetPreferenceSilently(@"ActiveThemePath", themePath);
+        OMAOMSetDiagnosticValue(@"ActiveThemePath", themePath);
     }
 
     NSString *homeKey = [mode isEqualToString:@"dark"] ? @"DarkHomeWallpaper" : @"LightHomeWallpaper";
@@ -201,19 +302,29 @@ static UIImage *OMAOMImageForBundleIdentifier(NSString *bundleIdentifier) {
         return nil;
     }
 
+    OMAOMSetDiagnosticValue(@"LastBundle", bundleIdentifier);
     NSString *activeThemePath = OMAOMStringPreference(@"ActiveThemePath", OMAOMActiveIconsPath());
     NSString *path = OMAOMExistingIconPathForBundleIdentifier(bundleIdentifier, activeThemePath);
     if (!path) {
         path = OMAOMExistingIconPathForBundleIdentifier(bundleIdentifier, OMAOMActiveIconsPath());
     }
     if (!path) {
+        OMAOMIconMissCount++;
+        OMAOMSetDiagnosticValue(@"IconMisses", @(OMAOMIconMissCount));
+        OMAOMSetDiagnosticValue(@"LastIconMiss", [NSString stringWithFormat:@"%@ in %@", bundleIdentifier, activeThemePath ?: @""]);
         return nil;
     }
 
     NSData *data = [NSData dataWithContentsOfFile:path];
     if (!data.length) {
+        OMAOMIconMissCount++;
+        OMAOMSetDiagnosticValue(@"IconMisses", @(OMAOMIconMissCount));
+        OMAOMSetDiagnosticValue(@"LastIconMiss", [NSString stringWithFormat:@"empty image: %@", path]);
         return nil;
     }
+    OMAOMIconHitCount++;
+    OMAOMSetDiagnosticValue(@"IconHits", @(OMAOMIconHitCount));
+    OMAOMSetDiagnosticValue(@"LastIconPath", path);
     return [UIImage imageWithData:data scale:UIScreen.mainScreen.scale];
 }
 
@@ -257,17 +368,20 @@ static void OMAOMRefreshIconContainer(UIView *view) {
     }
 }
 
-static void OMAOMRefreshIconViewsInView(UIView *view) {
+static void OMAOMRefreshIconViewsInView(UIView *view, NSInteger *containerCount) {
     if (!view) {
         return;
     }
 
     if ([view isKindOfClass:NSClassFromString(@"SBIconView")] || [view isKindOfClass:NSClassFromString(@"SBIconImageView")]) {
+        if (containerCount) {
+            (*containerCount)++;
+        }
         OMAOMRefreshIconContainer(view);
     }
 
     for (UIView *subview in view.subviews) {
-        OMAOMRefreshIconViewsInView(subview);
+        OMAOMRefreshIconViewsInView(subview, containerCount);
     }
 }
 
@@ -277,14 +391,21 @@ static void OMAOMRefreshAllIconViews(void) {
     }
 
     dispatch_async(dispatch_get_main_queue(), ^{
+        NSInteger windowCount = 0;
+        NSInteger iconContainerCount = 0;
         for (UIWindow *window in OMAOMApplicationWindows()) {
-            OMAOMRefreshIconViewsInView(window);
+            windowCount++;
+            OMAOMRefreshIconViewsInView(window, &iconContainerCount);
         }
+        OMAOMSetDiagnosticValue(@"WindowCount", @(windowCount));
+        OMAOMSetDiagnosticValue(@"IconContainerCount", @(iconContainerCount));
     });
 }
 
 static void OMAOMDarwinCallback(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo) {
+    OMAOMDebugEvent(@"darwin notification received");
     OMAOMApplyCurrentMode();
+    OMAOMApplyProofLockWallpaperIfNeeded();
 }
 
 %hook SBApplicationIcon
@@ -364,6 +485,10 @@ static void OMAOMDarwinCallback(CFNotificationCenterRef center, void *observer, 
 - (void)applicationDidFinishLaunching:(id)application {
     %orig;
     OMAOMEnsureDirectories();
+    OMAOMSetDiagnosticValue(@"EngineLoaded", @"YES");
+    OMAOMSetDiagnosticValue(@"LoadedAt", OMAOMNowNumber());
+    OMAOMSetDiagnosticValue(@"HostBundle", NSBundle.mainBundle.bundleIdentifier ?: @"");
+    OMAOMDebugEvent(@"SpringBoard hook loaded");
     CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, OMAOMDarwinCallback, (__bridge CFStringRef)OMAOMApplyNotification, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
     CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, OMAOMDarwinCallback, (__bridge CFStringRef)OMAOMPreferencesChangedNotification, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
 
@@ -378,6 +503,7 @@ static void OMAOMDarwinCallback(CFNotificationCenterRef center, void *observer, 
     }];
 
     OMAOMApplyCurrentMode();
+    OMAOMApplyProofLockWallpaperIfNeeded();
 }
 
 %end

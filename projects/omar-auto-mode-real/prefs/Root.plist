@@ -174,6 +174,86 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>label</key>
+			<string>Diagnostics</string>
+			<key>footerText</key>
+			<string>This shows whether SpringBoard loaded the engine, where apply stopped, and the last icon or wallpaper result.</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSTitleValueCell</string>
+			<key>label</key>
+			<string>Diagnostic Code</string>
+			<key>getter</key>
+			<string>diagnosticCodeValue</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSTitleValueCell</string>
+			<key>label</key>
+			<string>Engine Loaded</string>
+			<key>getter</key>
+			<string>engineLoadedValue</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSTitleValueCell</string>
+			<key>label</key>
+			<string>Last Event</string>
+			<key>getter</key>
+			<string>lastEventValue</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSTitleValueCell</string>
+			<key>label</key>
+			<string>Last Error</string>
+			<key>getter</key>
+			<string>lastErrorValue</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSTitleValueCell</string>
+			<key>label</key>
+			<string>Theme</string>
+			<key>getter</key>
+			<string>debugThemeValue</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSTitleValueCell</string>
+			<key>label</key>
+			<string>Icon Lookup</string>
+			<key>getter</key>
+			<string>debugIconValue</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSTitleValueCell</string>
+			<key>label</key>
+			<string>Wallpaper</string>
+			<key>getter</key>
+			<string>debugWallpaperValue</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSButtonCell</string>
+			<key>action</key>
+			<string>runProofLockTest</string>
+			<key>label</key>
+			<string>Run Lock Proof Test</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSButtonCell</string>
+			<key>action</key>
+			<string>showDiagnostics</string>
+			<key>label</key>
+			<string>Show Full Diagnostics</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
 			<string>Storage</string>
 		</dict>
 		<dict>
