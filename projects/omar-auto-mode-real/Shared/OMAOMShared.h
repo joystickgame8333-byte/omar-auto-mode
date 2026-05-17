@@ -2,6 +2,10 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern NSString *const OMAOMPreferencesIdentifier;
 extern NSString *const OMAOMApplyNotification;
 extern NSString *const OMAOMPreferencesChangedNotification;
@@ -22,5 +26,9 @@ NSString *OMAOMStringPreference(NSString *key, NSString *fallback);
 
 void OMAOMEnsureDirectories(void);
 void OMAOMPostDarwinNotification(NSString *name);
+
+#ifdef __cplusplus
+}
+#endif
 
 NS_ASSUME_NONNULL_END
