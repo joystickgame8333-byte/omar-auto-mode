@@ -5,6 +5,7 @@
 Makefile text eol=lf
 */Makefile text eol=lf
 postinst text eol=lf
+postrm text eol=lf
 control text eol=lf
 *.m text eol=lf
 *.h text eol=lf

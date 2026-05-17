@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-finish() {
+request_respring() {
   [ -n "${CYDIA:-}" ] || return 0
   read -r fd ver <<EOT
 $CYDIA
@@ -10,6 +10,5 @@ EOT
   echo "finish:restart" >&"$fd" || true
 }
 
-finish
+request_respring
 exit 0
-
