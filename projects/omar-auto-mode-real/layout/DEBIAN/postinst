@@ -1,6 +1,13 @@
 #!/bin/sh
 set -eu
 
+remove_springboard_engine() {
+  rm -f /var/jb/Library/MobileSubstrate/DynamicLibraries/OmarAutoMode.dylib
+  rm -f /var/jb/Library/MobileSubstrate/DynamicLibraries/OmarAutoMode.plist
+  rm -f /Library/MobileSubstrate/DynamicLibraries/OmarAutoMode.dylib
+  rm -f /Library/MobileSubstrate/DynamicLibraries/OmarAutoMode.plist
+}
+
 request_respring() {
   [ -n "${CYDIA:-}" ] || return 0
   read -r fd ver <<EOT
@@ -10,5 +17,6 @@ EOT
   echo "finish:restart" >&"$fd" || true
 }
 
+remove_springboard_engine
 request_respring
 exit 0

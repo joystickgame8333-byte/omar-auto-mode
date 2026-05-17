@@ -1,11 +1,11 @@
 Package: com.omaralasam.automode
 Name: Omar Auto Mode
-Version: 1.5-rootless
+Version: 1.6-rootless
 Architecture: iphoneos-arm64
-Description: Automatic light/dark icon and wallpaper switcher for rootless jailbreaks.
+Description: Recovery build for Omar Auto Mode settings. Removes the SpringBoard engine while crash logs are investigated.
 Maintainer: Omar al-Asam <omar@example.local>
 Author: Omar al-Asam
 Section: Tweaks
 Priority: optional
-Depends: firmware (>= 15.0), mobilesubstrate, preferenceloader
+Depends: firmware (>= 15.0), preferenceloader
 Tag: purpose::extension, role::enduser
