@@ -254,13 +254,13 @@ extern char **environ;
     [self showMessageWithTitle:@"Apply Requested" message:@"Omar Auto Mode is applying the matching setup for the current iOS appearance. Respring if cached icons do not refresh immediately."];
 }
 
-- (void)runProofLockTest {
+- (void)runEngineProbe {
     OMAOMSetPreferenceSilently(@"ProofLockWallpaperApplied", @NO);
-    OMAOMSetPreferenceSilently(@"ProofLockRequestedAt", @([[NSDate date] timeIntervalSince1970]));
-    OMAOMSetDiagnosticValue(@"LastEvent", @"proof request sent from Settings");
+    OMAOMSetPreferenceSilently(@"ProbeRequestedAt", @([[NSDate date] timeIntervalSince1970]));
+    OMAOMSetDiagnosticValue(@"LastEvent", @"engine probe sent from Settings");
     OMAOMSetDiagnosticValue(@"ProofWallpaperPath", OMAOMProofLockWallpaperPath());
     OMAOMPostDarwinNotification(OMAOMApplyNotification);
-    [self showMessageWithTitle:@"Proof Requested" message:@"A proof lock-screen wallpaper request was sent to SpringBoard. Open Diagnostics after a few seconds to see whether the engine received it."];
+    [self showMessageWithTitle:@"Probe Requested" message:@"A safe probe was sent to SpringBoard. It does not change wallpaper or icons. Open Diagnostics after a few seconds to see whether the engine received it."];
 }
 
 - (void)showDiagnostics {

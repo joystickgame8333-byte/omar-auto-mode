@@ -1,11 +1,11 @@
 Package: com.omaralasam.automode
 Name: Omar Auto Mode
-Version: 1.6-rootless
+Version: 1.7-rootless
 Architecture: iphoneos-arm64
-Description: Recovery build for Omar Auto Mode settings. Removes the SpringBoard engine while crash logs are investigated.
+Description: Safe SpringBoard probe for Omar Auto Mode. No wallpaper or icon replacement is performed.
 Maintainer: Omar al-Asam <omar@example.local>
 Author: Omar al-Asam
 Section: Tweaks
 Priority: optional
-Depends: firmware (>= 15.0), preferenceloader
+Depends: firmware (>= 15.0), mobilesubstrate, preferenceloader
 Tag: purpose::extension, role::enduser

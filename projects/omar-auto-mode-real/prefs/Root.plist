@@ -238,9 +238,9 @@
 			<key>cell</key>
 			<string>PSButtonCell</string>
 			<key>action</key>
-			<string>runProofLockTest</string>
+			<string>runEngineProbe</string>
 			<key>label</key>
-			<string>Run Lock Proof Test</string>
+			<string>Run Engine Probe</string>
 		</dict>
 		<dict>
 			<key>cell</key>

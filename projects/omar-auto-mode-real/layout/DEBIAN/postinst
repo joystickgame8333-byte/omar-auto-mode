@@ -1,11 +1,13 @@
 #!/bin/sh
 set -eu
 
-remove_springboard_engine() {
-  rm -f /var/jb/Library/MobileSubstrate/DynamicLibraries/OmarAutoMode.dylib
-  rm -f /var/jb/Library/MobileSubstrate/DynamicLibraries/OmarAutoMode.plist
-  rm -f /Library/MobileSubstrate/DynamicLibraries/OmarAutoMode.dylib
-  rm -f /Library/MobileSubstrate/DynamicLibraries/OmarAutoMode.plist
+restore_probe_engine() {
+  src="/var/jb/Library/Application Support/OmarAutoMode"
+  dst="/var/jb/Library/MobileSubstrate/DynamicLibraries"
+  [ -f "$src/OmarAutoMode.dylib" ] || return 0
+  mkdir -p "$dst"
+  cp -f "$src/OmarAutoMode.dylib" "$dst/OmarAutoMode.dylib"
+  cp -f "$src/OmarAutoMode.plist" "$dst/OmarAutoMode.plist"
 }
 
 request_respring() {
@@ -17,6 +19,6 @@ EOT
   echo "finish:restart" >&"$fd" || true
 }
 
-remove_springboard_engine
+restore_probe_engine
 request_respring
 exit 0
