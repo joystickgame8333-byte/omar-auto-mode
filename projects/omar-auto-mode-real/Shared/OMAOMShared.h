@@ -12,6 +12,8 @@ extern NSString *const OMAOMPreferencesChangedNotification;
 
 NSString *OMAOMRootPath(void);
 NSString *OMAOMActiveIconsPath(void);
+NSString *OMAOMSnowBoardActiveThemePath(void);
+NSString *OMAOMSnowBoardActiveThemeLinkPath(void);
 NSString *OMAOMIconThemesPath(void);
 NSString *OMAOMWallpapersPath(void);
 NSString *OMAOMProofLockWallpaperPath(void);

@@ -159,6 +159,47 @@ static BOOL OMAOMCopyDirectory(NSString *source, NSString *destination) {
     return moved;
 }
 
+static void OMAOMWriteMinimalInfoPlistIfMissing(NSString *themePath) {
+    NSString *infoPath = [themePath stringByAppendingPathComponent:@"Info.plist"];
+    if ([NSFileManager.defaultManager fileExistsAtPath:infoPath]) {
+        return;
+    }
+
+    NSDictionary *info = @{
+        @"Name": @"Omar Auto Mode Active",
+        @"PackageName": @"Omar Auto Mode Active",
+        @"Author": @"Omar",
+    };
+    [info writeToFile:infoPath atomically:YES];
+}
+
+static NSString *OMAOMSnowBoardLinkStatus(void) {
+    NSString *target = [NSFileManager.defaultManager destinationOfSymbolicLinkAtPath:OMAOMSnowBoardActiveThemeLinkPath() error:nil];
+    if ([target isEqualToString:OMAOMSnowBoardActiveThemePath()]) {
+        return @"linked";
+    }
+
+    BOOL isDirectory = NO;
+    if ([NSFileManager.defaultManager fileExistsAtPath:OMAOMSnowBoardActiveThemeLinkPath() isDirectory:&isDirectory]) {
+        return isDirectory ? @"occupied-by-folder" : @"occupied-by-file";
+    }
+    return @"missing";
+}
+
+static BOOL OMAOMActiveSnowBoardThemeNeedsRefresh(NSString *mode, NSString *sourcePath) {
+    NSString *lastMode = OMAOMStringPreference(@"LastAppliedMode", @"");
+    NSString *lastSource = OMAOMStringPreference(@"LastSourceThemePath", @"");
+    NSUInteger sourceCount = OMAOMPNGFileCountAtPath(sourcePath);
+    NSUInteger activeCount = OMAOMPNGFileCountAtPath(OMAOMSnowBoardActiveThemePath());
+    if (![lastMode isEqualToString:mode] || ![lastSource isEqualToString:sourcePath]) {
+        return YES;
+    }
+    if (sourceCount == 0 || activeCount != sourceCount) {
+        return YES;
+    }
+    return NO;
+}
+
 static void OMAOMApplyCurrentModeProbe(void) {
     if (!OMAOMBoolPreference(@"Enabled", YES)) {
         OMAOMDebugEvent(@"probe skipped: disabled");
@@ -177,37 +218,50 @@ static void OMAOMApplyCurrentModeProbe(void) {
     OMAOMSetDiagnosticValue(@"ThemeKey", themeKey);
     OMAOMSetDiagnosticValue(@"ThemePath", themePath);
     OMAOMSetDiagnosticValue(@"ThemePNGCount", @(OMAOMPNGFileCountAtPath(themePath)));
-    OMAOMSetDiagnosticValue(@"LastWallpaperResult", @"disabled in 2.1 recovery");
-    OMAOMSetDiagnosticValue(@"ProofWallpaperResult", @"disabled in 2.1 recovery");
+    OMAOMSetDiagnosticValue(@"LastWallpaperResult", @"disabled in 2.2 snowboard-bridge");
+    OMAOMSetDiagnosticValue(@"ProofWallpaperResult", @"disabled in 2.2 snowboard-bridge");
     OMAOMSetDiagnosticValue(@"WindowCount", @0);
     OMAOMSetDiagnosticValue(@"IconContainerCount", @0);
     OMAOMSetDiagnosticValue(@"IconHits", @0);
     OMAOMSetDiagnosticValue(@"IconMisses", @0);
-    OMAOMSetDiagnosticValue(@"LastBundle", @"disabled in 2.1 recovery");
-    OMAOMSetDiagnosticValue(@"LastIconPath", @"disabled in 2.1 recovery");
-    OMAOMSetDiagnosticValue(@"LastIconMiss", @"disabled in 2.1 recovery");
-    OMAOMSetDiagnosticValue(@"LastIconView", @"disabled in 2.1 recovery");
+    OMAOMSetDiagnosticValue(@"LastBundle", @"handled by SnowBoard");
+    OMAOMSetDiagnosticValue(@"LastIconPath", @"handled by SnowBoard");
+    OMAOMSetDiagnosticValue(@"LastIconMiss", @"handled by SnowBoard");
+    OMAOMSetDiagnosticValue(@"LastIconView", @"no SpringBoard icon hooks");
     OMAOMSetDiagnosticValue(@"LastIconImageViewsApplied", @0);
+    OMAOMSetDiagnosticValue(@"SnowBoardActiveThemePath", OMAOMSnowBoardActiveThemePath());
+    OMAOMSetDiagnosticValue(@"SnowBoardActiveThemeLinkPath", OMAOMSnowBoardActiveThemeLinkPath());
+    OMAOMSetDiagnosticValue(@"SnowBoardLinkStatus", OMAOMSnowBoardLinkStatus());
 
-    if (OMAOMCopyDirectory(themePath, OMAOMActiveIconsPath())) {
+    if (!OMAOMActiveSnowBoardThemeNeedsRefresh(mode, themePath)) {
+        OMAOMSetDiagnosticValue(@"ActiveThemePath", OMAOMSnowBoardActiveThemePath());
+        OMAOMSetDiagnosticValue(@"ActiveThemePNGCount", @(OMAOMPNGFileCountAtPath(OMAOMSnowBoardActiveThemePath())));
+        OMAOMDebugEvent(@"2.2 SnowBoard active theme already current");
+        return;
+    }
+
+    if (OMAOMCopyDirectory(themePath, OMAOMSnowBoardActiveThemePath())) {
+        OMAOMWriteMinimalInfoPlistIfMissing(OMAOMSnowBoardActiveThemePath());
         OMAOMSetPreferenceSilently(@"LastAppliedMode", mode);
-        OMAOMSetPreferenceSilently(@"ActiveThemePath", OMAOMActiveIconsPath());
-        OMAOMSetDiagnosticValue(@"ActiveThemePath", OMAOMActiveIconsPath());
-        OMAOMSetDiagnosticValue(@"ActiveThemePNGCount", @(OMAOMPNGFileCountAtPath(OMAOMActiveIconsPath())));
-        OMAOMDebugEvent(@"2.1 recovery copied active theme");
+        OMAOMSetPreferenceSilently(@"LastSourceThemePath", themePath);
+        OMAOMSetPreferenceSilently(@"ActiveThemePath", OMAOMSnowBoardActiveThemePath());
+        OMAOMSetDiagnosticValue(@"ActiveThemePath", OMAOMSnowBoardActiveThemePath());
+        OMAOMSetDiagnosticValue(@"ActiveThemePNGCount", @(OMAOMPNGFileCountAtPath(OMAOMSnowBoardActiveThemePath())));
+        OMAOMDebugEvent(@"2.2 copied SnowBoard active theme");
     } else if ([NSFileManager.defaultManager fileExistsAtPath:themePath]) {
         OMAOMSetPreferenceSilently(@"LastAppliedMode", mode);
+        OMAOMSetPreferenceSilently(@"LastSourceThemePath", themePath);
         OMAOMSetPreferenceSilently(@"ActiveThemePath", themePath);
         OMAOMSetDiagnosticValue(@"ActiveThemePath", themePath);
         OMAOMSetDiagnosticValue(@"ActiveThemePNGCount", @(OMAOMPNGFileCountAtPath(themePath)));
-        OMAOMDebugEvent(@"2.1 recovery using selected theme directly");
+        OMAOMDebugEvent(@"2.2 SnowBoard active copy failed, using selected directly");
     } else {
-        OMAOMDebugEvent(@"2.1 recovery failed before active theme");
+        OMAOMDebugEvent(@"2.2 failed before active SnowBoard theme");
     }
 }
 
 static void OMAOMDarwinCallback(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo) {
-    OMAOMDebugEvent(@"2.1 recovery notification received");
+    OMAOMDebugEvent(@"2.2 snowboard bridge notification received");
     OMAOMApplyCurrentModeProbe();
 }
 
@@ -222,7 +276,7 @@ static void OMAOMDarwinCallback(CFNotificationCenterRef center, void *observer, 
             OMAOMSetDiagnosticValue(@"EngineLoaded", @"YES");
             OMAOMSetDiagnosticValue(@"LoadedAt", OMAOMNowNumber());
             OMAOMSetDiagnosticValue(@"HostBundle", NSBundle.mainBundle.bundleIdentifier ?: @"");
-            OMAOMDebugEvent(@"2.1 recovery engine loaded");
+            OMAOMDebugEvent(@"2.2 snowboard bridge engine loaded");
             CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, OMAOMDarwinCallback, (__bridge CFStringRef)OMAOMApplyNotification, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
             CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, OMAOMDarwinCallback, (__bridge CFStringRef)OMAOMPreferencesChangedNotification, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
             OMAOMApplyCurrentModeProbe();

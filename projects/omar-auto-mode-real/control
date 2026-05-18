@@ -1,8 +1,8 @@
 Package: com.omaralasam.automode
 Name: Omar Auto Mode
-Version: 2.1-rootless
+Version: 2.2-rootless
 Architecture: iphoneos-arm64
-Description: Recovery build for Omar Auto Mode. SpringBoard icon and wallpaper hooks are disabled.
+Description: SnowBoard bridge for Omar Auto Mode. SpringBoard icon and wallpaper hooks are disabled.
 Maintainer: Omar al-Asam <omar@example.local>
 Author: Omar al-Asam
 Section: Tweaks

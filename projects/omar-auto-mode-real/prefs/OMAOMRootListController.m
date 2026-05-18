@@ -164,6 +164,11 @@ extern char **environ;
     return OMAOMWallpapersPath();
 }
 
+- (NSString *)snowBoardThemeValue {
+    NSString *status = [self debugStringForKey:@"DebugSnowBoardLinkStatus" fallback:@"unknown"];
+    return [NSString stringWithFormat:@"%@ - %@", [OMAOMSnowBoardActiveThemeLinkPath() lastPathComponent], status];
+}
+
 - (NSString *)themeValueForKey:(NSString *)key {
     NSString *path = OMAOMStringPreference(key, OMAOMDefaultPathForKey(key));
     BOOL isDirectory = NO;
@@ -281,6 +286,8 @@ extern char **environ;
         [NSString stringWithFormat:@"Last icon path: %@", [self debugStringForKey:@"DebugLastIconPath" fallback:@"Not Found"]],
         [NSString stringWithFormat:@"Last miss: %@", [self debugStringForKey:@"DebugLastIconMiss" fallback:@"None"]],
         [NSString stringWithFormat:@"Icon view: %@ / applied %@", [self debugStringForKey:@"DebugLastIconView" fallback:@"Not touched"], [self debugStringForKey:@"DebugLastIconImageViewsApplied" fallback:@"0"]],
+        [NSString stringWithFormat:@"SnowBoard active: %@", [self debugStringForKey:@"DebugSnowBoardActiveThemePath" fallback:OMAOMSnowBoardActiveThemePath()]],
+        [NSString stringWithFormat:@"SnowBoard link: %@ - %@", [self debugStringForKey:@"DebugSnowBoardActiveThemeLinkPath" fallback:OMAOMSnowBoardActiveThemeLinkPath()], [self debugStringForKey:@"DebugSnowBoardLinkStatus" fallback:@"unknown"]],
         [NSString stringWithFormat:@"Windows: %@", [self debugStringForKey:@"DebugWindowCount" fallback:@"0"]],
         [NSString stringWithFormat:@"Icon containers: %@", [self debugStringForKey:@"DebugIconContainerCount" fallback:@"0"]],
         [NSString stringWithFormat:@"Wallpaper: %@", [self debugWallpaperValue]],

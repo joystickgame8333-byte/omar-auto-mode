@@ -8,6 +8,11 @@ remove_springboard_engine() {
   rm -f /Library/MobileSubstrate/DynamicLibraries/OmarAutoMode.plist
 }
 
+remove_snowboard_bridge_link() {
+  link="/var/jb/Library/Themes/Omar Auto Mode Active.theme"
+  [ -L "$link" ] && rm -f "$link"
+}
+
 request_respring() {
   [ -n "${CYDIA:-}" ] || return 0
   read -r fd ver <<EOT
@@ -18,5 +23,6 @@ EOT
 }
 
 remove_springboard_engine
+remove_snowboard_bridge_link
 request_respring
 exit 0

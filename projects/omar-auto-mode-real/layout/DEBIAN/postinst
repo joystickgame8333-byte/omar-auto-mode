@@ -10,6 +10,30 @@ restore_probe_engine() {
   cp -f "$src/OmarAutoMode.plist" "$dst/OmarAutoMode.plist"
 }
 
+prepare_snowboard_bridge() {
+  root="/var/mobile/Library/OmarAutoMode"
+  active="$root/ActiveSnowBoard.theme"
+  themes="/var/jb/Library/Themes"
+  link="$themes/Omar Auto Mode Active.theme"
+
+  mkdir -p "$active" "$themes"
+  chown -R mobile:mobile "$root" 2>/dev/null || true
+
+  if [ -L "$link" ]; then
+    rm -f "$link"
+  elif [ -e "$link" ]; then
+    backup="$link.backup"
+    i=1
+    while [ -e "$backup" ]; do
+      backup="$link.backup.$i"
+      i=$((i + 1))
+    done
+    mv "$link" "$backup" 2>/dev/null || rm -rf "$link"
+  fi
+
+  ln -s "$active" "$link"
+}
+
 request_respring() {
   [ -n "${CYDIA:-}" ] || return 0
   read -r fd ver <<EOT
@@ -20,5 +44,6 @@ EOT
 }
 
 restore_probe_engine
+prepare_snowboard_bridge
 request_respring
 exit 0
