@@ -10,7 +10,7 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>footerText</key>
-			<string>Choose one icon theme for each system appearance. Enable Omar Auto Mode Active.theme once in SnowBoard; this tool updates that theme folder when iOS changes between light and dark mode.</string>
+			<string>Choose one icon theme for each system appearance. Omar Auto Mode is being prepared as a standalone tool.</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -182,6 +182,22 @@
 			<key>cell</key>
 			<string>PSTitleValueCell</string>
 			<key>label</key>
+			<string>Standalone Engine</string>
+			<key>getter</key>
+			<string>standaloneStateValue</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSTitleValueCell</string>
+			<key>label</key>
+			<string>Class Probe</string>
+			<key>getter</key>
+			<string>springBoardProbeValue</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSTitleValueCell</string>
+			<key>label</key>
 			<string>Diagnostic Code</string>
 			<key>getter</key>
 			<string>diagnosticCodeValue</string>
@@ -255,14 +271,6 @@
 			<string>PSGroupCell</string>
 			<key>label</key>
 			<string>Storage</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSTitleValueCell</string>
-			<key>label</key>
-			<string>SnowBoard Active Theme</string>
-			<key>getter</key>
-			<string>snowBoardThemeValue</string>
 		</dict>
 		<dict>
 			<key>cell</key>

@@ -164,9 +164,12 @@ extern char **environ;
     return OMAOMWallpapersPath();
 }
 
-- (NSString *)snowBoardThemeValue {
-    NSString *status = [self debugStringForKey:@"DebugSnowBoardLinkStatus" fallback:@"unknown"];
-    return [NSString stringWithFormat:@"%@ - %@", [OMAOMSnowBoardActiveThemeLinkPath() lastPathComponent], status];
+- (NSString *)standaloneStateValue {
+    return [self debugStringForKey:@"DebugStandaloneState" fallback:@"Waiting for SpringBoard"];
+}
+
+- (NSString *)springBoardProbeValue {
+    return [self debugStringForKey:@"DebugSpringBoardClassProbe" fallback:@"Not probed"];
 }
 
 - (NSString *)themeValueForKey:(NSString *)key {
@@ -266,7 +269,7 @@ extern char **environ;
     OMAOMSetDiagnosticValue(@"LastEvent", @"engine probe sent from Settings");
     OMAOMSetDiagnosticValue(@"ProofWallpaperPath", OMAOMProofLockWallpaperPath());
     OMAOMPostDarwinNotification(OMAOMApplyNotification);
-    [self showMessageWithTitle:@"Probe Requested" message:@"An icons-only probe was sent to SpringBoard. Wallpapers remain disabled. Open Diagnostics after a few seconds to see whether icon lookup is working."];
+    [self showMessageWithTitle:@"Probe Requested" message:@"A standalone-safe probe was sent to SpringBoard. It does not hook icons. Open Diagnostics after a few seconds."];
 }
 
 - (void)showDiagnostics {
@@ -286,8 +289,8 @@ extern char **environ;
         [NSString stringWithFormat:@"Last icon path: %@", [self debugStringForKey:@"DebugLastIconPath" fallback:@"Not Found"]],
         [NSString stringWithFormat:@"Last miss: %@", [self debugStringForKey:@"DebugLastIconMiss" fallback:@"None"]],
         [NSString stringWithFormat:@"Icon view: %@ / applied %@", [self debugStringForKey:@"DebugLastIconView" fallback:@"Not touched"], [self debugStringForKey:@"DebugLastIconImageViewsApplied" fallback:@"0"]],
-        [NSString stringWithFormat:@"SnowBoard active: %@", [self debugStringForKey:@"DebugSnowBoardActiveThemePath" fallback:OMAOMSnowBoardActiveThemePath()]],
-        [NSString stringWithFormat:@"SnowBoard link: %@ - %@", [self debugStringForKey:@"DebugSnowBoardActiveThemeLinkPath" fallback:OMAOMSnowBoardActiveThemeLinkPath()], [self debugStringForKey:@"DebugSnowBoardLinkStatus" fallback:@"unknown"]],
+        [NSString stringWithFormat:@"Standalone: %@", [self debugStringForKey:@"DebugStandaloneState" fallback:@"Unknown"]],
+        [NSString stringWithFormat:@"Class probe: %@", [self debugStringForKey:@"DebugSpringBoardClassProbe" fallback:@"Not probed"]],
         [NSString stringWithFormat:@"Windows: %@", [self debugStringForKey:@"DebugWindowCount" fallback:@"0"]],
         [NSString stringWithFormat:@"Icon containers: %@", [self debugStringForKey:@"DebugIconContainerCount" fallback:@"0"]],
         [NSString stringWithFormat:@"Wallpaper: %@", [self debugWallpaperValue]],

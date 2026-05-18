@@ -10,32 +10,21 @@ restore_probe_engine() {
   cp -f "$src/OmarAutoMode.plist" "$dst/OmarAutoMode.plist"
 }
 
-prepare_snowboard_bridge() {
+cleanup_external_theme_bridge() {
   root="/var/mobile/Library/OmarAutoMode"
-  old_active="$root/ActiveSnowBoard.theme"
-  themes="/var/jb/Library/Themes"
-  active="$themes/Omar Auto Mode Active.theme"
+  theme="/var/jb/Library/Themes/Omar Auto Mode Active.theme"
+  backup="$root/FormerExternalActive.theme"
 
-  mkdir -p "$root" "$themes"
+  mkdir -p "$root"
   chown -R mobile:mobile "$root" 2>/dev/null || true
 
-  if [ -L "$active" ]; then
-    rm -f "$active"
-  elif [ -e "$active" ] && [ ! -d "$active" ]; then
-    backup="$active.backup"
-    i=1
-    while [ -e "$backup" ]; do
-      backup="$active.backup.$i"
-      i=$((i + 1))
-    done
-    mv "$active" "$backup" 2>/dev/null || rm -f "$active"
+  if [ -L "$theme" ]; then
+    rm -f "$theme"
+  elif [ -d "$theme" ]; then
+    rm -rf "$backup"
+    mv "$theme" "$backup" 2>/dev/null || true
+    chown -R mobile:mobile "$backup" 2>/dev/null || true
   fi
-
-  mkdir -p "$active"
-  if [ -d "$old_active" ] && [ -z "$(ls -A "$active" 2>/dev/null)" ]; then
-    cp -R "$old_active"/. "$active"/ 2>/dev/null || true
-  fi
-  chown -R mobile:mobile "$active" 2>/dev/null || true
 }
 
 request_respring() {
@@ -48,6 +37,6 @@ EOT
 }
 
 restore_probe_engine
-prepare_snowboard_bridge
+cleanup_external_theme_bridge
 request_respring
 exit 0

@@ -13,14 +13,6 @@ NSString *OMAOMActiveIconsPath(void) {
     return [OMAOMRootPath() stringByAppendingPathComponent:@"ActiveIcons"];
 }
 
-NSString *OMAOMSnowBoardActiveThemePath(void) {
-    return @"/var/jb/Library/Themes/Omar Auto Mode Active.theme";
-}
-
-NSString *OMAOMSnowBoardActiveThemeLinkPath(void) {
-    return OMAOMSnowBoardActiveThemePath();
-}
-
 NSString *OMAOMIconThemesPath(void) {
     return [OMAOMRootPath() stringByAppendingPathComponent:@"IconThemes"];
 }
@@ -133,7 +125,6 @@ void OMAOMEnsureDirectories(void) {
     NSArray<NSString *> *paths = @[
         OMAOMRootPath(),
         OMAOMActiveIconsPath(),
-        OMAOMSnowBoardActiveThemePath(),
         [OMAOMIconThemesPath() stringByAppendingPathComponent:@"Light"],
         [OMAOMIconThemesPath() stringByAppendingPathComponent:@"Dark"],
         [OMAOMWallpapersPath() stringByAppendingPathComponent:@"Light"],

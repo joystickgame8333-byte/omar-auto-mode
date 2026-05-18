@@ -1,8 +1,8 @@
 Package: com.omaralasam.automode
 Name: Omar Auto Mode
-Version: 2.3-rootless
+Version: 2.4-rootless
 Architecture: iphoneos-arm64
-Description: SnowBoard real theme bridge for Omar Auto Mode. SpringBoard icon and wallpaper hooks are disabled.
+Description: Standalone diagnostic build for Omar Auto Mode. SpringBoard icon hooks are disabled.
 Maintainer: Omar al-Asam <omar@example.local>
 Author: Omar al-Asam
 Section: Tweaks
