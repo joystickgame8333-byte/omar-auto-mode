@@ -289,6 +289,8 @@ extern char **environ;
         [NSString stringWithFormat:@"Last icon path: %@", [self debugStringForKey:@"DebugLastIconPath" fallback:@"Not Found"]],
         [NSString stringWithFormat:@"Last miss: %@", [self debugStringForKey:@"DebugLastIconMiss" fallback:@"None"]],
         [NSString stringWithFormat:@"Icon view: %@ / applied %@", [self debugStringForKey:@"DebugLastIconView" fallback:@"Not touched"], [self debugStringForKey:@"DebugLastIconImageViewsApplied" fallback:@"0"]],
+        [NSString stringWithFormat:@"Icon view hits: %@", [self debugStringForKey:@"DebugIconViewProbeHits" fallback:@"0"]],
+        [NSString stringWithFormat:@"Icon subviews: %@", [self debugStringForKey:@"DebugIconViewSubviews" fallback:@"Not seen"]],
         [NSString stringWithFormat:@"Standalone: %@", [self debugStringForKey:@"DebugStandaloneState" fallback:@"Unknown"]],
         [NSString stringWithFormat:@"Class probe: %@", [self debugStringForKey:@"DebugSpringBoardClassProbe" fallback:@"Not probed"]],
         [NSString stringWithFormat:@"Windows: %@", [self debugStringForKey:@"DebugWindowCount" fallback:@"0"]],

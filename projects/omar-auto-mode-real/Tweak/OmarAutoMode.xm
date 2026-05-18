@@ -1,6 +1,13 @@
 #import <UIKit/UIKit.h>
 #import "../Shared/OMAOMShared.h"
 
+@interface SBIconView : UIView
+- (id)icon;
+@end
+
+static NSUInteger OMAOMIconViewProbeHitCount = 0;
+static CFTimeInterval OMAOMLastIconViewProbeDiagnosticWrite = 0;
+
 static NSNumber *OMAOMNowNumber(void) {
     return @([[NSDate date] timeIntervalSince1970]);
 }
@@ -158,6 +165,84 @@ static BOOL OMAOMCopyDirectory(NSString *source, NSString *destination) {
     return moved;
 }
 
+static id OMAOMPerformObjectSelector(id object, SEL selector) {
+    if (!object || ![object respondsToSelector:selector]) {
+        return nil;
+    }
+
+    @try {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+        id value = [object performSelector:selector];
+#pragma clang diagnostic pop
+        return value;
+    } @catch (__unused NSException *exception) {
+        return nil;
+    }
+}
+
+static NSString *OMAOMBundleIdentifierForObject(id object) {
+    if ([object isKindOfClass:NSString.class] && [object length]) {
+        return object;
+    }
+
+    NSArray<NSString *> *selectors = @[@"applicationBundleID", @"bundleIdentifier", @"displayIdentifier", @"leafIdentifier"];
+    for (NSString *selectorName in selectors) {
+        id value = OMAOMPerformObjectSelector(object, NSSelectorFromString(selectorName));
+        if ([value isKindOfClass:NSString.class] && [value length]) {
+            return value;
+        }
+    }
+    return nil;
+}
+
+static NSString *OMAOMSubviewClassSummary(UIView *view) {
+    if (!view) {
+        return @"no view";
+    }
+
+    NSMutableArray<NSString *> *classes = [NSMutableArray array];
+    for (UIView *subview in view.subviews) {
+        NSString *className = NSStringFromClass(subview.class) ?: @"Unknown";
+        if (![classes containsObject:className]) {
+            [classes addObject:className];
+        }
+        if (classes.count >= 8) {
+            break;
+        }
+    }
+    return classes.count ? [classes componentsJoinedByString:@","] : @"no subviews";
+}
+
+static void OMAOMRecordIconViewProbe(UIView *view, NSString *source) {
+    if (!OMAOMBoolPreference(@"Enabled", YES)) {
+        return;
+    }
+
+    OMAOMIconViewProbeHitCount++;
+
+    CFTimeInterval now = [NSDate timeIntervalSinceReferenceDate];
+    if (OMAOMIconViewProbeHitCount > 12 && now - OMAOMLastIconViewProbeDiagnosticWrite < 2.0) {
+        return;
+    }
+    OMAOMLastIconViewProbeDiagnosticWrite = now;
+
+    id icon = OMAOMPerformObjectSelector(view, @selector(icon));
+    NSString *bundleIdentifier = OMAOMBundleIdentifierForObject(icon);
+
+    OMAOMSetDiagnosticValue(@"IconViewProbeHits", @(OMAOMIconViewProbeHitCount));
+    OMAOMSetDiagnosticValue(@"IconContainerCount", @(OMAOMIconViewProbeHitCount));
+    OMAOMSetDiagnosticValue(@"IconHits", @(OMAOMIconViewProbeHitCount));
+    OMAOMSetDiagnosticValue(@"IconMisses", @0);
+    OMAOMSetDiagnosticValue(@"LastBundle", bundleIdentifier ?: @"SBIconView icon without bundle id");
+    OMAOMSetDiagnosticValue(@"LastIconPath", @"probe only; image not changed");
+    OMAOMSetDiagnosticValue(@"LastIconMiss", @"none in 2.5 probe");
+    OMAOMSetDiagnosticValue(@"LastIconView", [NSString stringWithFormat:@"%@ via %@", NSStringFromClass(view.class), source ?: @"unknown"]);
+    OMAOMSetDiagnosticValue(@"LastIconImageViewsApplied", @0);
+    OMAOMSetDiagnosticValue(@"IconViewSubviews", OMAOMSubviewClassSummary(view));
+    OMAOMSetDiagnosticValue(@"StandaloneState", @"SBIconView hook reached; image replacement disabled");
+}
+
 static NSString *OMAOMSpringBoardClassProbe(void) {
     NSArray<NSString *> *classes = @[
         @"SBIcon",
@@ -237,15 +322,9 @@ static void OMAOMApplyCurrentModeProbe(void) {
     OMAOMSetDiagnosticValue(@"LastWallpaperResult", @"disabled in 2.4 standalone probe");
     OMAOMSetDiagnosticValue(@"ProofWallpaperResult", @"disabled in 2.4 standalone probe");
     OMAOMSetDiagnosticValue(@"WindowCount", @0);
-    OMAOMSetDiagnosticValue(@"IconContainerCount", @0);
-    OMAOMSetDiagnosticValue(@"IconHits", @0);
-    OMAOMSetDiagnosticValue(@"IconMisses", @0);
-    OMAOMSetDiagnosticValue(@"LastBundle", @"not hooked in 2.4");
-    OMAOMSetDiagnosticValue(@"LastIconPath", @"not hooked in 2.4");
-    OMAOMSetDiagnosticValue(@"LastIconMiss", @"not hooked in 2.4");
-    OMAOMSetDiagnosticValue(@"LastIconView", @"standalone probe only");
-    OMAOMSetDiagnosticValue(@"LastIconImageViewsApplied", @0);
-    OMAOMSetDiagnosticValue(@"StandaloneState", @"standalone probe only; no icon hooks");
+    OMAOMSetDiagnosticValue(@"LastIconPath", @"probe only; image not changed");
+    OMAOMSetDiagnosticValue(@"LastIconMiss", @"none in 2.5 probe");
+    OMAOMSetDiagnosticValue(@"StandaloneState", @"SBIconView probe installed; image replacement disabled");
     OMAOMSetDiagnosticValue(@"SpringBoardClassProbe", OMAOMSpringBoardClassProbe());
 
     if (OMAOMCopyDirectory(themePath, OMAOMActiveIconsPath())) {
@@ -268,9 +347,25 @@ static void OMAOMApplyCurrentModeProbe(void) {
 }
 
 static void OMAOMDarwinCallback(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo) {
-    OMAOMDebugEvent(@"2.4 standalone notification received");
+    OMAOMDebugEvent(@"2.5 standalone icon-view probe notification received");
     OMAOMApplyCurrentModeProbe();
 }
+
+%hook SBIconView
+
+- (void)setIcon:(id)icon {
+    %orig;
+    OMAOMRecordIconViewProbe((UIView *)self, @"setIcon:");
+}
+
+- (void)didMoveToWindow {
+    %orig;
+    if (((UIView *)self).window) {
+        OMAOMRecordIconViewProbe((UIView *)self, @"didMoveToWindow");
+    }
+}
+
+%end
 
 %ctor {
     @autoreleasepool {
@@ -283,7 +378,13 @@ static void OMAOMDarwinCallback(CFNotificationCenterRef center, void *observer, 
             OMAOMSetDiagnosticValue(@"EngineLoaded", @"YES");
             OMAOMSetDiagnosticValue(@"LoadedAt", OMAOMNowNumber());
             OMAOMSetDiagnosticValue(@"HostBundle", NSBundle.mainBundle.bundleIdentifier ?: @"");
-            OMAOMDebugEvent(@"2.4 standalone probe engine loaded");
+            OMAOMSetDiagnosticValue(@"IconViewProbeHits", @0);
+            OMAOMSetDiagnosticValue(@"IconContainerCount", @0);
+            OMAOMSetDiagnosticValue(@"IconHits", @0);
+            OMAOMSetDiagnosticValue(@"IconMisses", @0);
+            OMAOMSetDiagnosticValue(@"LastIconView", @"waiting for SBIconView");
+            OMAOMSetDiagnosticValue(@"IconViewSubviews", @"waiting");
+            OMAOMDebugEvent(@"2.5 standalone icon-view probe engine loaded");
             CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, OMAOMDarwinCallback, (__bridge CFStringRef)OMAOMApplyNotification, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
             CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, OMAOMDarwinCallback, (__bridge CFStringRef)OMAOMPreferencesChangedNotification, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
             OMAOMApplyCurrentModeProbe();

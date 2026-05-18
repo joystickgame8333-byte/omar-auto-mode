@@ -1,8 +1,8 @@
 Package: com.omaralasam.automode
 Name: Omar Auto Mode
-Version: 2.4-rootless
+Version: 2.5-rootless
 Architecture: iphoneos-arm64
-Description: Standalone diagnostic build for Omar Auto Mode. SpringBoard icon hooks are disabled.
+Description: Standalone SBIconView probe for Omar Auto Mode. Icon image replacement is disabled.
 Maintainer: Omar al-Asam <omar@example.local>
 Author: Omar al-Asam
 Section: Tweaks
