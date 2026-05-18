@@ -1,5 +1,4 @@
 #import <UIKit/UIKit.h>
-#import <objc/runtime.h>
 #import "../Shared/OMAOMShared.h"
 
 @interface SBIconView : UIView
@@ -299,8 +298,22 @@ static UIImage *OMAOMImageAtPath(NSString *path) {
     return image;
 }
 
+static void OMAOMSetOriginalIconSubviewsHidden(UIView *container, BOOL hidden) {
+    if (!container) {
+        return;
+    }
+
+    for (UIView *subview in container.subviews) {
+        if (subview.tag == OMAOMIconOverlayTag) {
+            continue;
+        }
+        subview.hidden = hidden;
+    }
+}
+
 static void OMAOMRemoveIconOverlay(UIView *view) {
     UIView *overlay = OMAOMFindTaggedSubview(view, OMAOMIconOverlayTag);
+    OMAOMSetOriginalIconSubviewsHidden(overlay.superview, NO);
     [overlay removeFromSuperview];
 }
 
@@ -362,6 +375,9 @@ static BOOL OMAOMApplyIconOverlay(UIView *view, NSString *source) {
                         overlay.frame = frame;
                         overlay.image = image;
                         overlay.hidden = NO;
+                        if (container != view) {
+                            OMAOMSetOriginalIconSubviewsHidden(container, YES);
+                        }
                         [container bringSubviewToFront:overlay];
 
                         OMAOMIconOverlayAppliedCount++;
@@ -395,7 +411,7 @@ static BOOL OMAOMApplyIconOverlay(UIView *view, NSString *source) {
         OMAOMSetDiagnosticValue(@"IconHits", @(OMAOMIconOverlayAppliedCount));
         OMAOMSetDiagnosticValue(@"IconMisses", @(OMAOMIconOverlayMissCount));
         OMAOMSetDiagnosticValue(@"LastIconImageViewsApplied", @(OMAOMIconOverlayAppliedCount));
-        OMAOMSetDiagnosticValue(@"StandaloneState", applied ? @"SBIconView overlay applied; system image untouched" : @"SBIconView overlay checked; system image untouched");
+        OMAOMSetDiagnosticValue(@"StandaloneState", applied ? @"SBIconView overlay applied; original layer hidden" : @"SBIconView overlay checked; original layer restored on miss");
     }
 
     return applied;
@@ -477,12 +493,12 @@ static void OMAOMApplyCurrentModeProbe(void) {
     OMAOMSetDiagnosticValue(@"ThemeKey", themeKey);
     OMAOMSetDiagnosticValue(@"ThemePath", themePath);
     OMAOMSetDiagnosticValue(@"ThemePNGCount", @(OMAOMPNGFileCountAtPath(themePath)));
-    OMAOMSetDiagnosticValue(@"LastWallpaperResult", @"disabled in 2.6 icons-only overlay");
-    OMAOMSetDiagnosticValue(@"ProofWallpaperResult", @"disabled in 2.6 icons-only overlay");
+    OMAOMSetDiagnosticValue(@"LastWallpaperResult", @"disabled in 2.7 icons-only overlay");
+    OMAOMSetDiagnosticValue(@"ProofWallpaperResult", @"disabled in 2.7 icons-only overlay");
     OMAOMSetDiagnosticValue(@"WindowCount", @0);
     OMAOMSetDiagnosticValue(@"LastIconPath", @"waiting for SBIconView overlay");
     OMAOMSetDiagnosticValue(@"LastIconMiss", @"waiting for icon layout");
-    OMAOMSetDiagnosticValue(@"StandaloneState", @"SBIconView overlay engine installed; system image untouched");
+    OMAOMSetDiagnosticValue(@"StandaloneState", @"SBIconView overlay engine installed; original layer hidden when applied");
     OMAOMSetDiagnosticValue(@"SpringBoardClassProbe", OMAOMSpringBoardClassProbe());
 
     if (OMAOMCopyDirectory(themePath, OMAOMActiveIconsPath())) {
@@ -492,7 +508,7 @@ static void OMAOMApplyCurrentModeProbe(void) {
         OMAOMSetPreferenceSilently(@"ActiveThemePath", OMAOMActiveIconsPath());
         OMAOMSetDiagnosticValue(@"ActiveThemePath", OMAOMActiveIconsPath());
         OMAOMSetDiagnosticValue(@"ActiveThemePNGCount", @(OMAOMPNGFileCountAtPath(OMAOMActiveIconsPath())));
-        OMAOMDebugEvent(@"2.6 standalone copied active icons and enabled overlay");
+        OMAOMDebugEvent(@"2.7 standalone copied active icons and enabled clean overlay");
     } else if ([NSFileManager.defaultManager fileExistsAtPath:themePath]) {
         OMAOMResetIconImageCache();
         OMAOMSetPreferenceSilently(@"LastAppliedMode", mode);
@@ -500,14 +516,14 @@ static void OMAOMApplyCurrentModeProbe(void) {
         OMAOMSetPreferenceSilently(@"ActiveThemePath", themePath);
         OMAOMSetDiagnosticValue(@"ActiveThemePath", themePath);
         OMAOMSetDiagnosticValue(@"ActiveThemePNGCount", @(OMAOMPNGFileCountAtPath(themePath)));
-        OMAOMDebugEvent(@"2.6 standalone using selected theme directly");
+        OMAOMDebugEvent(@"2.7 standalone using selected theme directly");
     } else {
-        OMAOMDebugEvent(@"2.6 standalone failed before active icons");
+        OMAOMDebugEvent(@"2.7 standalone failed before active icons");
     }
 }
 
 static void OMAOMDarwinCallback(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo) {
-    OMAOMDebugEvent(@"2.6 standalone icon overlay notification received");
+    OMAOMDebugEvent(@"2.7 standalone icon overlay notification received");
     OMAOMApplyCurrentModeProbe();
 }
 
@@ -550,7 +566,7 @@ static void OMAOMDarwinCallback(CFNotificationCenterRef center, void *observer, 
             OMAOMSetDiagnosticValue(@"LastIconView", @"waiting for SBIconView");
             OMAOMSetDiagnosticValue(@"IconViewSubviews", @"waiting");
             OMAOMSetDiagnosticValue(@"LastIconImageViewsApplied", @0);
-            OMAOMDebugEvent(@"2.6 standalone SBIconView overlay engine loaded");
+            OMAOMDebugEvent(@"2.7 standalone SBIconView overlay engine loaded");
             CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, OMAOMDarwinCallback, (__bridge CFStringRef)OMAOMApplyNotification, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
             CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, OMAOMDarwinCallback, (__bridge CFStringRef)OMAOMPreferencesChangedNotification, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
             OMAOMApplyCurrentModeProbe();
