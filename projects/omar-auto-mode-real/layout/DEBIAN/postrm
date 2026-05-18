@@ -8,9 +8,13 @@ remove_springboard_engine() {
   rm -f /Library/MobileSubstrate/DynamicLibraries/OmarAutoMode.plist
 }
 
-remove_snowboard_bridge_link() {
-  link="/var/jb/Library/Themes/Omar Auto Mode Active.theme"
-  [ -L "$link" ] && rm -f "$link"
+remove_snowboard_bridge_theme() {
+  theme="/var/jb/Library/Themes/Omar Auto Mode Active.theme"
+  if [ -L "$theme" ]; then
+    rm -f "$theme"
+  elif [ -d "$theme" ]; then
+    rm -rf "$theme"
+  fi
 }
 
 request_respring() {
@@ -23,6 +27,6 @@ EOT
 }
 
 remove_springboard_engine
-remove_snowboard_bridge_link
+remove_snowboard_bridge_theme
 request_respring
 exit 0

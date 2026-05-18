@@ -14,11 +14,11 @@ NSString *OMAOMActiveIconsPath(void) {
 }
 
 NSString *OMAOMSnowBoardActiveThemePath(void) {
-    return [OMAOMRootPath() stringByAppendingPathComponent:@"ActiveSnowBoard.theme"];
+    return @"/var/jb/Library/Themes/Omar Auto Mode Active.theme";
 }
 
 NSString *OMAOMSnowBoardActiveThemeLinkPath(void) {
-    return @"/var/jb/Library/Themes/Omar Auto Mode Active.theme";
+    return OMAOMSnowBoardActiveThemePath();
 }
 
 NSString *OMAOMIconThemesPath(void) {
