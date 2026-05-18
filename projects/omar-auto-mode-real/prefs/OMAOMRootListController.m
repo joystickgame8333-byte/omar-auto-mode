@@ -269,7 +269,7 @@ extern char **environ;
     OMAOMSetDiagnosticValue(@"LastEvent", @"engine probe sent from Settings");
     OMAOMSetDiagnosticValue(@"ProofWallpaperPath", OMAOMProofLockWallpaperPath());
     OMAOMPostDarwinNotification(OMAOMApplyNotification);
-    [self showMessageWithTitle:@"Probe Requested" message:@"A standalone-safe probe was sent to SpringBoard. It does not hook icons. Open Diagnostics after a few seconds."];
+    [self showMessageWithTitle:@"Probe Requested" message:@"A standalone-safe refresh was sent to SpringBoard. It uses SBIconView overlays and leaves the system icon image untouched. Open Diagnostics after a few seconds."];
 }
 
 - (void)showDiagnostics {
@@ -290,6 +290,7 @@ extern char **environ;
         [NSString stringWithFormat:@"Last miss: %@", [self debugStringForKey:@"DebugLastIconMiss" fallback:@"None"]],
         [NSString stringWithFormat:@"Icon view: %@ / applied %@", [self debugStringForKey:@"DebugLastIconView" fallback:@"Not touched"], [self debugStringForKey:@"DebugLastIconImageViewsApplied" fallback:@"0"]],
         [NSString stringWithFormat:@"Icon view hits: %@", [self debugStringForKey:@"DebugIconViewProbeHits" fallback:@"0"]],
+        [NSString stringWithFormat:@"Overlay container: %@", [self debugStringForKey:@"DebugIconOverlayContainer" fallback:@"Not applied"]],
         [NSString stringWithFormat:@"Icon subviews: %@", [self debugStringForKey:@"DebugIconViewSubviews" fallback:@"Not seen"]],
         [NSString stringWithFormat:@"Standalone: %@", [self debugStringForKey:@"DebugStandaloneState" fallback:@"Unknown"]],
         [NSString stringWithFormat:@"Class probe: %@", [self debugStringForKey:@"DebugSpringBoardClassProbe" fallback:@"Not probed"]],

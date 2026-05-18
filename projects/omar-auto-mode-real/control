@@ -1,8 +1,8 @@
 Package: com.omaralasam.automode
 Name: Omar Auto Mode
-Version: 2.5-rootless
+Version: 2.6-rootless
 Architecture: iphoneos-arm64
-Description: Standalone SBIconView probe for Omar Auto Mode. Icon image replacement is disabled.
+Description: Standalone SBIconView overlay test for Omar Auto Mode. System icon images are left untouched.
 Maintainer: Omar al-Asam <omar@example.local>
 Author: Omar al-Asam
 Section: Tweaks

@@ -1,4 +1,5 @@
 #import <UIKit/UIKit.h>
+#import <objc/runtime.h>
 #import "../Shared/OMAOMShared.h"
 
 @interface SBIconView : UIView
@@ -6,7 +7,13 @@
 @end
 
 static NSUInteger OMAOMIconViewProbeHitCount = 0;
+static NSUInteger OMAOMIconOverlayAppliedCount = 0;
+static NSUInteger OMAOMIconOverlayMissCount = 0;
 static CFTimeInterval OMAOMLastIconViewProbeDiagnosticWrite = 0;
+static BOOL OMAOMIsApplyingIconOverlay = NO;
+static const NSInteger OMAOMIconOverlayTag = 260526;
+static NSMutableDictionary<NSString *, UIImage *> *OMAOMIconImageCache;
+static NSMutableSet<NSString *> *OMAOMMissingIconPathCache;
 
 static NSNumber *OMAOMNowNumber(void) {
     return @([[NSDate date] timeIntervalSince1970]);
@@ -214,33 +221,184 @@ static NSString *OMAOMSubviewClassSummary(UIView *view) {
     return classes.count ? [classes componentsJoinedByString:@","] : @"no subviews";
 }
 
-static void OMAOMRecordIconViewProbe(UIView *view, NSString *source) {
-    if (!OMAOMBoolPreference(@"Enabled", YES)) {
-        return;
+static UIView *OMAOMFirstSubviewMatchingName(UIView *view, NSArray<NSString *> *needles) {
+    for (UIView *subview in view.subviews) {
+        NSString *className = NSStringFromClass(subview.class) ?: @"";
+        for (NSString *needle in needles) {
+            if ([className containsString:needle]) {
+                return subview;
+            }
+        }
+    }
+    return nil;
+}
+
+static UIView *OMAOMIconOverlayContainerForView(UIView *view) {
+    UIView *container = OMAOMFirstSubviewMatchingName(view, @[@"TouchPassThrough", @"IconImage", @"Icon"]);
+    return container ?: view;
+}
+
+static UIView *OMAOMFindTaggedSubview(UIView *view, NSInteger tag) {
+    if (view.tag == tag) {
+        return view;
+    }
+    for (UIView *subview in view.subviews) {
+        UIView *match = OMAOMFindTaggedSubview(subview, tag);
+        if (match) {
+            return match;
+        }
+    }
+    return nil;
+}
+
+static CGRect OMAOMOverlayFrameForContainer(UIView *container, UIView *iconView) {
+    CGRect bounds = container.bounds;
+    if (CGRectIsEmpty(bounds) || bounds.size.width <= 0 || bounds.size.height <= 0) {
+        bounds = iconView.bounds;
     }
 
-    OMAOMIconViewProbeHitCount++;
+    CGFloat side = MIN(bounds.size.width, bounds.size.height);
+    if (side <= 0) {
+        return CGRectZero;
+    }
+
+    CGFloat x = (bounds.size.width - side) / 2.0;
+    CGFloat y = (bounds.size.height - side) / 2.0;
+    if (container == iconView && bounds.size.height > bounds.size.width * 1.2) {
+        y = 0;
+    }
+    return CGRectIntegral(CGRectMake(x, y, side, side));
+}
+
+static void OMAOMResetIconImageCache(void) {
+    OMAOMIconImageCache = [NSMutableDictionary dictionary];
+    OMAOMMissingIconPathCache = [NSMutableSet set];
+}
+
+static UIImage *OMAOMImageAtPath(NSString *path) {
+    if (!path.length) {
+        return nil;
+    }
+    if (!OMAOMIconImageCache) {
+        OMAOMResetIconImageCache();
+    }
+    UIImage *cached = OMAOMIconImageCache[path];
+    if (cached) {
+        return cached;
+    }
+    if ([OMAOMMissingIconPathCache containsObject:path]) {
+        return nil;
+    }
+
+    UIImage *image = [UIImage imageWithContentsOfFile:path];
+    if (image) {
+        OMAOMIconImageCache[path] = image;
+    } else {
+        [OMAOMMissingIconPathCache addObject:path];
+    }
+    return image;
+}
+
+static void OMAOMRemoveIconOverlay(UIView *view) {
+    UIView *overlay = OMAOMFindTaggedSubview(view, OMAOMIconOverlayTag);
+    [overlay removeFromSuperview];
+}
+
+static BOOL OMAOMApplyIconOverlay(UIView *view, NSString *source) {
+    if (!OMAOMBoolPreference(@"Enabled", YES)) {
+        OMAOMRemoveIconOverlay(view);
+        return NO;
+    }
+    if (OMAOMIsApplyingIconOverlay || !view) {
+        return NO;
+    }
+
+    OMAOMIsApplyingIconOverlay = YES;
+    BOOL applied = NO;
+    BOOL countedMiss = NO;
+    @try {
+        OMAOMIconViewProbeHitCount++;
+
+        id icon = OMAOMPerformObjectSelector(view, @selector(icon));
+        NSString *bundleIdentifier = OMAOMBundleIdentifierForObject(icon);
+        if (!bundleIdentifier.length) {
+            countedMiss = YES;
+            OMAOMRemoveIconOverlay(view);
+            OMAOMSetDiagnosticValue(@"LastIconMiss", @"SBIconView icon without bundle id");
+        } else {
+            NSString *iconPath = OMAOMExistingIconPathForBundleIdentifier(bundleIdentifier, OMAOMActiveIconsPath());
+            if (!iconPath.length) {
+                countedMiss = YES;
+                OMAOMRemoveIconOverlay(view);
+                OMAOMSetDiagnosticValue(@"LastBundle", bundleIdentifier);
+                OMAOMSetDiagnosticValue(@"LastIconMiss", [NSString stringWithFormat:@"no active png for %@", bundleIdentifier]);
+            } else {
+                UIImage *image = OMAOMImageAtPath(iconPath);
+                if (!image) {
+                    countedMiss = YES;
+                    OMAOMRemoveIconOverlay(view);
+                    OMAOMSetDiagnosticValue(@"LastBundle", bundleIdentifier);
+                    OMAOMSetDiagnosticValue(@"LastIconMiss", [NSString stringWithFormat:@"png load failed for %@", iconPath.lastPathComponent]);
+                } else {
+                    UIView *container = OMAOMIconOverlayContainerForView(view);
+                    CGRect frame = OMAOMOverlayFrameForContainer(container, view);
+                    if (CGRectIsEmpty(frame)) {
+                        countedMiss = YES;
+                        OMAOMSetDiagnosticValue(@"LastBundle", bundleIdentifier);
+                        OMAOMSetDiagnosticValue(@"LastIconMiss", @"empty icon frame");
+                    } else {
+                        UIImageView *overlay = (UIImageView *)[container viewWithTag:OMAOMIconOverlayTag];
+                        if (![overlay isKindOfClass:UIImageView.class]) {
+                            [overlay removeFromSuperview];
+                            overlay = [[UIImageView alloc] initWithFrame:frame];
+                            overlay.tag = OMAOMIconOverlayTag;
+                            overlay.userInteractionEnabled = NO;
+                            overlay.clipsToBounds = YES;
+                            overlay.contentMode = UIViewContentModeScaleAspectFit;
+                            overlay.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+                            [container addSubview:overlay];
+                        }
+
+                        overlay.frame = frame;
+                        overlay.image = image;
+                        overlay.hidden = NO;
+                        [container bringSubviewToFront:overlay];
+
+                        OMAOMIconOverlayAppliedCount++;
+                        applied = YES;
+                        OMAOMSetDiagnosticValue(@"LastBundle", bundleIdentifier);
+                        OMAOMSetDiagnosticValue(@"LastIconPath", iconPath);
+                        OMAOMSetDiagnosticValue(@"LastIconMiss", @"none");
+                        OMAOMSetDiagnosticValue(@"LastIconView", [NSString stringWithFormat:@"%@ via %@", NSStringFromClass(view.class), source ?: @"unknown"]);
+                        OMAOMSetDiagnosticValue(@"IconViewSubviews", OMAOMSubviewClassSummary(view));
+                        OMAOMSetDiagnosticValue(@"IconOverlayContainer", NSStringFromClass(container.class) ?: @"unknown");
+                    }
+                }
+            }
+        }
+    } @catch (NSException *exception) {
+        countedMiss = YES;
+        OMAOMSetDiagnosticError([NSString stringWithFormat:@"Icon overlay exception: %@", exception.reason ?: exception.name]);
+        applied = NO;
+    } @finally {
+        OMAOMIsApplyingIconOverlay = NO;
+    }
+    if (countedMiss) {
+        OMAOMIconOverlayMissCount++;
+    }
 
     CFTimeInterval now = [NSDate timeIntervalSinceReferenceDate];
-    if (OMAOMIconViewProbeHitCount > 12 && now - OMAOMLastIconViewProbeDiagnosticWrite < 2.0) {
-        return;
+    if (OMAOMIconViewProbeHitCount <= 12 || now - OMAOMLastIconViewProbeDiagnosticWrite >= 2.0) {
+        OMAOMLastIconViewProbeDiagnosticWrite = now;
+        OMAOMSetDiagnosticValue(@"IconViewProbeHits", @(OMAOMIconViewProbeHitCount));
+        OMAOMSetDiagnosticValue(@"IconContainerCount", @(OMAOMIconViewProbeHitCount));
+        OMAOMSetDiagnosticValue(@"IconHits", @(OMAOMIconOverlayAppliedCount));
+        OMAOMSetDiagnosticValue(@"IconMisses", @(OMAOMIconOverlayMissCount));
+        OMAOMSetDiagnosticValue(@"LastIconImageViewsApplied", @(OMAOMIconOverlayAppliedCount));
+        OMAOMSetDiagnosticValue(@"StandaloneState", applied ? @"SBIconView overlay applied; system image untouched" : @"SBIconView overlay checked; system image untouched");
     }
-    OMAOMLastIconViewProbeDiagnosticWrite = now;
 
-    id icon = OMAOMPerformObjectSelector(view, @selector(icon));
-    NSString *bundleIdentifier = OMAOMBundleIdentifierForObject(icon);
-
-    OMAOMSetDiagnosticValue(@"IconViewProbeHits", @(OMAOMIconViewProbeHitCount));
-    OMAOMSetDiagnosticValue(@"IconContainerCount", @(OMAOMIconViewProbeHitCount));
-    OMAOMSetDiagnosticValue(@"IconHits", @(OMAOMIconViewProbeHitCount));
-    OMAOMSetDiagnosticValue(@"IconMisses", @0);
-    OMAOMSetDiagnosticValue(@"LastBundle", bundleIdentifier ?: @"SBIconView icon without bundle id");
-    OMAOMSetDiagnosticValue(@"LastIconPath", @"probe only; image not changed");
-    OMAOMSetDiagnosticValue(@"LastIconMiss", @"none in 2.5 probe");
-    OMAOMSetDiagnosticValue(@"LastIconView", [NSString stringWithFormat:@"%@ via %@", NSStringFromClass(view.class), source ?: @"unknown"]);
-    OMAOMSetDiagnosticValue(@"LastIconImageViewsApplied", @0);
-    OMAOMSetDiagnosticValue(@"IconViewSubviews", OMAOMSubviewClassSummary(view));
-    OMAOMSetDiagnosticValue(@"StandaloneState", @"SBIconView hook reached; image replacement disabled");
+    return applied;
 }
 
 static NSString *OMAOMSpringBoardClassProbe(void) {
@@ -319,35 +477,37 @@ static void OMAOMApplyCurrentModeProbe(void) {
     OMAOMSetDiagnosticValue(@"ThemeKey", themeKey);
     OMAOMSetDiagnosticValue(@"ThemePath", themePath);
     OMAOMSetDiagnosticValue(@"ThemePNGCount", @(OMAOMPNGFileCountAtPath(themePath)));
-    OMAOMSetDiagnosticValue(@"LastWallpaperResult", @"disabled in 2.4 standalone probe");
-    OMAOMSetDiagnosticValue(@"ProofWallpaperResult", @"disabled in 2.4 standalone probe");
+    OMAOMSetDiagnosticValue(@"LastWallpaperResult", @"disabled in 2.6 icons-only overlay");
+    OMAOMSetDiagnosticValue(@"ProofWallpaperResult", @"disabled in 2.6 icons-only overlay");
     OMAOMSetDiagnosticValue(@"WindowCount", @0);
-    OMAOMSetDiagnosticValue(@"LastIconPath", @"probe only; image not changed");
-    OMAOMSetDiagnosticValue(@"LastIconMiss", @"none in 2.5 probe");
-    OMAOMSetDiagnosticValue(@"StandaloneState", @"SBIconView probe installed; image replacement disabled");
+    OMAOMSetDiagnosticValue(@"LastIconPath", @"waiting for SBIconView overlay");
+    OMAOMSetDiagnosticValue(@"LastIconMiss", @"waiting for icon layout");
+    OMAOMSetDiagnosticValue(@"StandaloneState", @"SBIconView overlay engine installed; system image untouched");
     OMAOMSetDiagnosticValue(@"SpringBoardClassProbe", OMAOMSpringBoardClassProbe());
 
     if (OMAOMCopyDirectory(themePath, OMAOMActiveIconsPath())) {
+        OMAOMResetIconImageCache();
         OMAOMSetPreferenceSilently(@"LastAppliedMode", mode);
         OMAOMSetPreferenceSilently(@"LastSourceThemePath", themePath);
         OMAOMSetPreferenceSilently(@"ActiveThemePath", OMAOMActiveIconsPath());
         OMAOMSetDiagnosticValue(@"ActiveThemePath", OMAOMActiveIconsPath());
         OMAOMSetDiagnosticValue(@"ActiveThemePNGCount", @(OMAOMPNGFileCountAtPath(OMAOMActiveIconsPath())));
-        OMAOMDebugEvent(@"2.4 standalone copied active icons and probed classes");
+        OMAOMDebugEvent(@"2.6 standalone copied active icons and enabled overlay");
     } else if ([NSFileManager.defaultManager fileExistsAtPath:themePath]) {
+        OMAOMResetIconImageCache();
         OMAOMSetPreferenceSilently(@"LastAppliedMode", mode);
         OMAOMSetPreferenceSilently(@"LastSourceThemePath", themePath);
         OMAOMSetPreferenceSilently(@"ActiveThemePath", themePath);
         OMAOMSetDiagnosticValue(@"ActiveThemePath", themePath);
         OMAOMSetDiagnosticValue(@"ActiveThemePNGCount", @(OMAOMPNGFileCountAtPath(themePath)));
-        OMAOMDebugEvent(@"2.4 standalone using selected theme directly");
+        OMAOMDebugEvent(@"2.6 standalone using selected theme directly");
     } else {
-        OMAOMDebugEvent(@"2.4 standalone failed before active icons");
+        OMAOMDebugEvent(@"2.6 standalone failed before active icons");
     }
 }
 
 static void OMAOMDarwinCallback(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo) {
-    OMAOMDebugEvent(@"2.5 standalone icon-view probe notification received");
+    OMAOMDebugEvent(@"2.6 standalone icon overlay notification received");
     OMAOMApplyCurrentModeProbe();
 }
 
@@ -355,14 +515,19 @@ static void OMAOMDarwinCallback(CFNotificationCenterRef center, void *observer, 
 
 - (void)setIcon:(id)icon {
     %orig;
-    OMAOMRecordIconViewProbe((UIView *)self, @"setIcon:");
+    OMAOMApplyIconOverlay((UIView *)self, @"setIcon:");
 }
 
 - (void)didMoveToWindow {
     %orig;
     if (((UIView *)self).window) {
-        OMAOMRecordIconViewProbe((UIView *)self, @"didMoveToWindow");
+        OMAOMApplyIconOverlay((UIView *)self, @"didMoveToWindow");
     }
+}
+
+- (void)layoutSubviews {
+    %orig;
+    OMAOMApplyIconOverlay((UIView *)self, @"layoutSubviews");
 }
 
 %end
@@ -384,7 +549,8 @@ static void OMAOMDarwinCallback(CFNotificationCenterRef center, void *observer, 
             OMAOMSetDiagnosticValue(@"IconMisses", @0);
             OMAOMSetDiagnosticValue(@"LastIconView", @"waiting for SBIconView");
             OMAOMSetDiagnosticValue(@"IconViewSubviews", @"waiting");
-            OMAOMDebugEvent(@"2.5 standalone icon-view probe engine loaded");
+            OMAOMSetDiagnosticValue(@"LastIconImageViewsApplied", @0);
+            OMAOMDebugEvent(@"2.6 standalone SBIconView overlay engine loaded");
             CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, OMAOMDarwinCallback, (__bridge CFStringRef)OMAOMApplyNotification, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
             CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, OMAOMDarwinCallback, (__bridge CFStringRef)OMAOMPreferencesChangedNotification, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
             OMAOMApplyCurrentModeProbe();
