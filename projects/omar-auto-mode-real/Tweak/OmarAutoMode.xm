@@ -121,44 +121,6 @@ static NSString *OMAOMThemePathForMode(NSString *mode, NSString *themeKey) {
     return selected;
 }
 
-static BOOL OMAOMCopyDirectory(NSString *source, NSString *destination) {
-    NSFileManager *fm = NSFileManager.defaultManager;
-    BOOL isDirectory = NO;
-    if (![fm fileExistsAtPath:source isDirectory:&isDirectory] || !isDirectory) {
-        OMAOMSetDiagnosticError([NSString stringWithFormat:@"Theme folder missing: %@", source ?: @""]);
-        return NO;
-    }
-
-    NSString *tmp = [destination stringByAppendingString:@".tmp"];
-    [fm removeItemAtPath:tmp error:nil];
-
-    NSError *createError = nil;
-    if (![fm createDirectoryAtPath:tmp withIntermediateDirectories:YES attributes:nil error:&createError]) {
-        OMAOMSetDiagnosticError([NSString stringWithFormat:@"Active temp create failed: %@", createError.localizedDescription ?: @"unknown"]);
-        return NO;
-    }
-
-    NSArray<NSString *> *items = [fm contentsOfDirectoryAtPath:source error:nil] ?: @[];
-    for (NSString *item in items) {
-        NSString *from = [source stringByAppendingPathComponent:item];
-        NSString *to = [tmp stringByAppendingPathComponent:item];
-        NSError *copyError = nil;
-        if (![fm copyItemAtPath:from toPath:to error:&copyError]) {
-            OMAOMSetDiagnosticError([NSString stringWithFormat:@"Theme copy failed at %@: %@", item, copyError.localizedDescription ?: @"unknown"]);
-            [fm removeItemAtPath:tmp error:nil];
-            return NO;
-        }
-    }
-
-    [fm removeItemAtPath:destination error:nil];
-    NSError *moveError = nil;
-    BOOL moved = [fm moveItemAtPath:tmp toPath:destination error:&moveError];
-    if (!moved) {
-        OMAOMSetDiagnosticError([NSString stringWithFormat:@"Active theme move failed: %@", moveError.localizedDescription ?: @"unknown"]);
-    }
-    return moved;
-}
-
 static BOOL OMAOMCopyIntoExistingDirectory(NSString *source, NSString *destination) {
     NSFileManager *fm = NSFileManager.defaultManager;
     BOOL isDirectory = NO;
