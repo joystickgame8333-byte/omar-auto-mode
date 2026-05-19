@@ -1,10 +1,84 @@
 #import "OMAOMRootListController.h"
+#import "OMAOMIconPreviewController.h"
 #import "OMAOMThemePickerController.h"
 #import "../Shared/OMAOMShared.h"
 #import <Preferences/PSSpecifier.h>
 #import <spawn.h>
 
 extern char **environ;
+
+static NSUInteger OMAOMPrefsPNGFileCountAtPath(NSString *path) {
+    if (!path.length) {
+        return 0;
+    }
+
+    BOOL isDirectory = NO;
+    if (![NSFileManager.defaultManager fileExistsAtPath:path isDirectory:&isDirectory] || !isDirectory) {
+        return 0;
+    }
+
+    NSUInteger count = 0;
+    NSDirectoryEnumerator<NSString *> *enumerator = [NSFileManager.defaultManager enumeratorAtPath:path];
+    for (NSString *item in enumerator) {
+        if ([item.pathExtension.lowercaseString isEqualToString:@"png"]) {
+            count++;
+        }
+    }
+    return count;
+}
+
+static NSArray<NSString *> *OMAOMPrefsThemeSearchRoots(void) {
+    return @[
+        OMAOMIconThemesPath(),
+        @"/var/jb/Library/Themes",
+        @"/Library/Themes",
+    ];
+}
+
+static NSString *OMAOMPrefsFallbackThemePathForMode(NSString *mode) {
+    NSMutableArray<NSString *> *paths = [NSMutableArray array];
+    for (NSString *root in OMAOMPrefsThemeSearchRoots()) {
+        NSArray<NSString *> *names = [NSFileManager.defaultManager contentsOfDirectoryAtPath:root error:nil] ?: @[];
+        for (NSString *name in [names sortedArrayUsingSelector:@selector(localizedCaseInsensitiveCompare:)]) {
+            NSString *path = [root stringByAppendingPathComponent:name];
+            BOOL isDirectory = NO;
+            if ([NSFileManager.defaultManager fileExistsAtPath:path isDirectory:&isDirectory] && isDirectory) {
+                [paths addObject:path];
+            }
+        }
+    }
+
+    NSArray<NSString *> *preferredWords = [mode isEqualToString:@"dark"] ? @[@"dark", @"night", @"black"] : @[@"light", @"clear", @"white"];
+    for (NSString *path in paths) {
+        NSString *name = path.lastPathComponent.lowercaseString;
+        if (OMAOMPrefsPNGFileCountAtPath(path) == 0) {
+            continue;
+        }
+        for (NSString *word in preferredWords) {
+            if ([name containsString:word]) {
+                return path;
+            }
+        }
+    }
+
+    for (NSString *path in paths) {
+        if (OMAOMPrefsPNGFileCountAtPath(path) > 0) {
+            return path;
+        }
+    }
+    return nil;
+}
+
+static NSString *OMAOMPrefsDetectedMode(void) {
+    if (@available(iOS 13.0, *)) {
+        UIUserInterfaceStyle style = UIScreen.mainScreen.traitCollection.userInterfaceStyle;
+        if (style == UIUserInterfaceStyleUnspecified) {
+            style = UITraitCollection.currentTraitCollection.userInterfaceStyle;
+        }
+        return style == UIUserInterfaceStyleDark ? @"dark" : @"light";
+    }
+    return @"light";
+}
 
 @interface OMAOMRootListController ()
 @property (nonatomic, copy) NSString *pendingWallpaperKey;
@@ -89,6 +163,11 @@ extern char **environ;
         return @"E-RUNTIME";
     }
 
+    NSString *liveOverlay = [self debugStringForKey:@"DebugLiveIconOverlayEnabled" fallback:@""];
+    if ([liveOverlay isEqualToString:@"NO"]) {
+        return @"OK-PREVIEW";
+    }
+
     NSInteger hits = [OMAOMPreference(@"DebugIconHits") integerValue];
     NSInteger misses = [OMAOMPreference(@"DebugIconMisses") integerValue];
     if (misses > 0 && hits == 0) {
@@ -130,6 +209,16 @@ extern char **environ;
 
 - (NSString *)debugWallpaperValue {
     return [self debugStringForKey:@"DebugLastWallpaperResult" fallback:@"Not called"];
+}
+
+- (NSString *)previewThemeValue {
+    NSString *mode = [self currentPreviewMode];
+    NSString *path = [self resolvedThemePathForMode:mode];
+    NSUInteger count = OMAOMPrefsPNGFileCountAtPath(path);
+    if (!path.length || count == 0) {
+        return @"No theme image";
+    }
+    return [NSString stringWithFormat:@"%@ - %lu png", path.lastPathComponent, (unsigned long)count];
 }
 
 - (NSString *)lightThemeValue {
@@ -176,7 +265,7 @@ extern char **environ;
     NSString *path = OMAOMStringPreference(key, OMAOMDefaultPathForKey(key));
     BOOL isDirectory = NO;
     if ([NSFileManager.defaultManager fileExistsAtPath:path isDirectory:&isDirectory] && isDirectory) {
-        return path.lastPathComponent;
+        return [NSString stringWithFormat:@"%@ - %lu png", path.lastPathComponent, (unsigned long)OMAOMPrefsPNGFileCountAtPath(path)];
     }
     return @"Not Set";
 }
@@ -184,9 +273,67 @@ extern char **environ;
 - (NSString *)wallpaperValueForKey:(NSString *)key {
     NSString *path = OMAOMStringPreference(key, OMAOMDefaultPathForKey(key));
     if ([NSFileManager.defaultManager fileExistsAtPath:path]) {
-        return path.lastPathComponent;
+        NSDictionary<NSFileAttributeKey, id> *attributes = [NSFileManager.defaultManager attributesOfItemAtPath:path error:nil];
+        unsigned long long size = [attributes[NSFileSize] unsignedLongLongValue];
+        if (size > 0) {
+            return [NSString stringWithFormat:@"Saved - %.1f MB", (double)size / (1024.0 * 1024.0)];
+        }
+        return @"Saved";
     }
     return @"Not Set";
+}
+
+- (NSString *)currentPreviewMode {
+    NSString *debugMode = [self debugStringForKey:@"DebugLastMode" fallback:@""].lowercaseString;
+    if ([debugMode isEqualToString:@"dark"] || [debugMode isEqualToString:@"light"]) {
+        return debugMode;
+    }
+
+    NSString *lastMode = OMAOMStringPreference(@"LastAppliedMode", @"").lowercaseString;
+    if ([lastMode isEqualToString:@"dark"] || [lastMode isEqualToString:@"light"]) {
+        return lastMode;
+    }
+    return OMAOMPrefsDetectedMode();
+}
+
+- (NSString *)resolvedThemePathForMode:(NSString *)mode {
+    NSString *key = [mode isEqualToString:@"dark"] ? @"DarkIconTheme" : @"LightIconTheme";
+    NSString *selected = OMAOMStringPreference(key, OMAOMDefaultPathForKey(key));
+    if (OMAOMPrefsPNGFileCountAtPath(selected) > 0) {
+        return selected;
+    }
+
+    NSString *debugTheme = [self debugStringForKey:@"DebugThemePath" fallback:@""];
+    if (OMAOMPrefsPNGFileCountAtPath(debugTheme) > 0) {
+        return debugTheme;
+    }
+
+    NSString *fallback = OMAOMPrefsFallbackThemePathForMode(mode);
+    return fallback ?: selected;
+}
+
+- (void)previewCurrentThemeIcons {
+    [self previewThemeIconsForMode:[self currentPreviewMode] title:@"Current Mode Icons"];
+}
+
+- (void)previewLightThemeIcons {
+    [self previewThemeIconsForMode:@"light" title:@"Light Icons"];
+}
+
+- (void)previewDarkThemeIcons {
+    [self previewThemeIconsForMode:@"dark" title:@"Dark Icons"];
+}
+
+- (void)previewThemeIconsForMode:(NSString *)mode title:(NSString *)title {
+    NSString *themePath = [self resolvedThemePathForMode:mode];
+    if (OMAOMPrefsPNGFileCountAtPath(themePath) == 0) {
+        [self showMessageWithTitle:@"No Icons Found" message:@"Choose a theme folder that contains PNG icons first."];
+        return;
+    }
+
+    NSString *screenTitle = [NSString stringWithFormat:@"%@ - %@", title, themePath.lastPathComponent];
+    OMAOMIconPreviewController *controller = [[OMAOMIconPreviewController alloc] initWithThemePath:themePath title:screenTitle];
+    [self.navigationController pushViewController:controller animated:YES];
 }
 
 - (void)pickLightTheme {
@@ -237,6 +384,8 @@ extern char **environ;
     UIImage *image = info[UIImagePickerControllerOriginalImage];
     NSString *key = self.pendingWallpaperKey;
     self.pendingWallpaperKey = nil;
+    __block NSString *messageTitle = @"Wallpaper Not Saved";
+    __block NSString *message = @"No image was returned from Photos.";
 
     if (image && key) {
         NSString *path = OMAOMDefaultPathForKey(key);
@@ -244,11 +393,22 @@ extern char **environ;
         NSData *data = UIImagePNGRepresentation(image);
         if ([data writeToFile:path atomically:YES]) {
             OMAOMSetPreference(key, path);
+            OMAOMSetDiagnosticValue(@"LastWallpaperResult", [NSString stringWithFormat:@"saved %@ only", key]);
+            OMAOMSetDiagnosticValue(@"LastWallpaperPath", path);
+            OMAOMSetDiagnosticValue(@"ProofWallpaperResult", @"system apply disabled for stability");
+            messageTitle = @"Wallpaper Saved";
+            message = @"The image was saved in Omar Auto Mode. System wallpaper applying is still disabled so SpringBoard stays stable while icon theming is being fixed.";
+        } else {
+            OMAOMSetDiagnosticError([NSString stringWithFormat:@"Wallpaper save failed: %@", path.lastPathComponent]);
+            OMAOMSetDiagnosticValue(@"LastWallpaperResult", @"save failed");
+            OMAOMSetDiagnosticValue(@"LastWallpaperPath", path);
+            message = @"The image could not be written to the Omar Auto Mode folder.";
         }
     }
 
     [picker dismissViewControllerAnimated:YES completion:^{
         [self reloadSpecifiers];
+        [self showMessageWithTitle:messageTitle message:message];
     }];
 }
 
@@ -260,7 +420,7 @@ extern char **environ;
 - (void)applyNow {
     OMAOMSetPreference(@"ManualApplyRequestedAt", @([[NSDate date] timeIntervalSince1970]));
     OMAOMPostDarwinNotification(OMAOMApplyNotification);
-    [self showMessageWithTitle:@"Apply Requested" message:@"Omar Auto Mode is applying the matching setup for the current iOS appearance. Respring if cached icons do not refresh immediately."];
+    [self showMessageWithTitle:@"Apply Requested" message:@"Omar Auto Mode prepared the matching icon theme for the current iOS appearance. Live icon overlay is off unless you enable the experimental switch."];
 }
 
 - (void)runEngineProbe {
@@ -269,7 +429,7 @@ extern char **environ;
     OMAOMSetDiagnosticValue(@"LastEvent", @"engine probe sent from Settings");
     OMAOMSetDiagnosticValue(@"ProofWallpaperPath", OMAOMProofLockWallpaperPath());
     OMAOMPostDarwinNotification(OMAOMApplyNotification);
-    [self showMessageWithTitle:@"Probe Requested" message:@"A standalone-safe refresh was sent to SpringBoard. It uses SBIconView overlays and leaves the system icon image untouched. Open Diagnostics after a few seconds."];
+    [self showMessageWithTitle:@"Probe Requested" message:@"A safe refresh was sent to SpringBoard. It prepares the selected theme and removes old overlay squares unless the experimental overlay switch is enabled."];
 }
 
 - (void)showDiagnostics {
@@ -285,6 +445,7 @@ extern char **environ;
         [NSString stringWithFormat:@"Active: %@", [self debugStringForKey:@"DebugActiveThemePath" fallback:@"Not Set"]],
         [NSString stringWithFormat:@"Theme PNGs: %@", [self debugStringForKey:@"DebugThemePNGCount" fallback:@"0"]],
         [NSString stringWithFormat:@"Active PNGs: %@", [self debugStringForKey:@"DebugActiveThemePNGCount" fallback:@"0"]],
+        [NSString stringWithFormat:@"Live overlay: %@", [self debugStringForKey:@"DebugLiveIconOverlayEnabled" fallback:@"Unknown"]],
         [NSString stringWithFormat:@"Icons: %@", [self debugIconValue]],
         [NSString stringWithFormat:@"Last icon path: %@", [self debugStringForKey:@"DebugLastIconPath" fallback:@"Not Found"]],
         [NSString stringWithFormat:@"Last miss: %@", [self debugStringForKey:@"DebugLastIconMiss" fallback:@"None"]],

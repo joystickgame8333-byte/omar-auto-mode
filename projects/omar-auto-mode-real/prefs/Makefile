@@ -1,7 +1,7 @@
 include $(THEOS)/makefiles/common.mk
 
 BUNDLE_NAME = OmarAutoModePrefs
-OmarAutoModePrefs_FILES = OMAOMRootListController.m OMAOMThemePickerController.m ../Shared/OMAOMShared.m
+OmarAutoModePrefs_FILES = OMAOMRootListController.m OMAOMIconPreviewController.m OMAOMThemePickerController.m ../Shared/OMAOMShared.m
 OmarAutoModePrefs_INSTALL_PATH = /Library/PreferenceBundles
 OmarAutoModePrefs_CFLAGS = -fobjc-arc -Wall -F$(THEOS_PROJECT_DIR)/Frameworks
 OmarAutoModePrefs_FRAMEWORKS = UIKit Foundation CoreFoundation

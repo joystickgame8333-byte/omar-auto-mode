@@ -6,6 +6,31 @@
 @property (nonatomic, copy) NSArray<NSString *> *themePaths;
 @end
 
+static NSUInteger OMAOMThemePickerPNGCount(NSString *path) {
+    if (!path.length) {
+        return 0;
+    }
+
+    NSUInteger count = 0;
+    NSDirectoryEnumerator<NSString *> *enumerator = [NSFileManager.defaultManager enumeratorAtPath:path];
+    for (NSString *item in enumerator) {
+        if ([item.pathExtension.lowercaseString isEqualToString:@"png"]) {
+            count++;
+        }
+    }
+    return count;
+}
+
+static NSString *OMAOMThemePickerFirstPNG(NSString *path) {
+    NSDirectoryEnumerator<NSString *> *enumerator = [NSFileManager.defaultManager enumeratorAtPath:path];
+    for (NSString *item in enumerator) {
+        if ([item.pathExtension.lowercaseString isEqualToString:@"png"]) {
+            return [path stringByAppendingPathComponent:item];
+        }
+    }
+    return nil;
+}
+
 @implementation OMAOMThemePickerController
 
 - (instancetype)initWithPreferenceKey:(NSString *)preferenceKey title:(NSString *)title {
@@ -55,6 +80,7 @@
     if (!cell) {
         cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:@"ThemeCell"];
     }
+    cell.imageView.image = nil;
 
     if (!self.themePaths.count) {
         cell.textLabel.text = @"No Themes Found";
@@ -66,7 +92,11 @@
     NSString *path = self.themePaths[indexPath.row];
     NSString *selected = OMAOMStringPreference(self.preferenceKey, OMAOMDefaultPathForKey(self.preferenceKey));
     cell.textLabel.text = path.lastPathComponent;
-    cell.detailTextLabel.text = path;
+    cell.detailTextLabel.text = [NSString stringWithFormat:@"%lu png - %@", (unsigned long)OMAOMThemePickerPNGCount(path), path];
+    cell.imageView.image = [UIImage imageWithContentsOfFile:OMAOMThemePickerFirstPNG(path)];
+    cell.imageView.contentMode = UIViewContentModeScaleAspectFit;
+    cell.imageView.layer.cornerRadius = 8.0;
+    cell.imageView.clipsToBounds = YES;
     cell.accessoryType = [selected isEqualToString:path] ? UITableViewCellAccessoryCheckmark : UITableViewCellAccessoryNone;
     cell.selectionStyle = UITableViewCellSelectionStyleDefault;
     return cell;
