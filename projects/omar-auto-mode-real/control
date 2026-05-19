@@ -1,8 +1,8 @@
 Package: com.omaralasam.automode
 Name: Omar Auto Mode
-Version: 2.8-rootless
+Version: 2.9-rootless
 Architecture: iphoneos-arm64
-Description: Standalone icon overlay with automatic visible icon refresh for Omar Auto Mode.
+Description: Standalone icon overlay with labels preserved and automatic visible icon refresh.
 Maintainer: Omar al-Asam <omar@example.local>
 Author: Omar al-Asam
 Section: Tweaks
