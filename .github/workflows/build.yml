@@ -1,4 +1,4 @@
-name: Build Omar Auto Mode rootless deb
+name: Build Omar Auto Icons rootless deb
 
 on:
   workflow_dispatch:
@@ -7,23 +7,21 @@ on:
 jobs:
   build:
     runs-on: macos-14
-    defaults:
-      run:
-        working-directory: projects/omar-auto-mode-real
     steps:
       - uses: actions/checkout@v4
+
       - name: Install Theos
         run: |
           brew install dpkg ldid xz make
           git clone --recursive https://github.com/theos/theos.git "$HOME/theos"
           echo "THEOS=$HOME/theos" >> "$GITHUB_ENV"
-      - name: Build
+
+      - name: Build package
         run: |
-          make --version
-          xcodebuild -version
           make clean package THEOS_PACKAGE_SCHEME=rootless FINALPACKAGE=1
-      - name: Upload package
+
+      - name: Upload deb
         uses: actions/upload-artifact@v4
         with:
-          name: OmarAutoMode-rootless
-          path: projects/omar-auto-mode-real/packages/*.deb
+          name: OmarAutoIcons-rootless-deb
+          path: packages/*.deb
