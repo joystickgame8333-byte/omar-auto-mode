@@ -10,7 +10,7 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>footerText</key>
-			<string>Automatic mode prepares the selected icon folder for the current iOS appearance. Preview first, then enable the experimental live overlay only when you want to test icons on SpringBoard.</string>
+			<string>اضغط على شاشة النهار أو شاشة الليل فوق لاختيار الثيم والصور الخاصة بها.</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -22,7 +22,7 @@
 			<key>key</key>
 			<string>Enabled</string>
 			<key>label</key>
-			<string>Automatic Switching</string>
+			<string>التبديل التلقائي</string>
 			<key>PostNotification</key>
 			<string>com.omaralasam.automode/preferences.changed</string>
 		</dict>
@@ -30,7 +30,7 @@
 			<key>cell</key>
 			<string>PSTitleValueCell</string>
 			<key>label</key>
-			<string>Current Mode</string>
+			<string>الوضع الحالي</string>
 			<key>getter</key>
 			<string>currentModeValue</string>
 		</dict>
@@ -38,175 +38,9 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>label</key>
-			<string>Preview</string>
+			<string>التطبيق</string>
 			<key>footerText</key>
-			<string>Preview opens the real PNG files from the selected theme. Tap any app bundle to see the exact icon image and path.</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSTitleValueCell</string>
-			<key>label</key>
-			<string>Theme Image Set</string>
-			<key>getter</key>
-			<string>previewThemeValue</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSButtonCell</string>
-			<key>action</key>
-			<string>previewCurrentThemeIcons</string>
-			<key>label</key>
-			<string>Preview Current Icons</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSButtonCell</string>
-			<key>action</key>
-			<string>previewLightThemeIcons</string>
-			<key>label</key>
-			<string>Preview Light Icons</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSButtonCell</string>
-			<key>action</key>
-			<string>previewDarkThemeIcons</string>
-			<key>label</key>
-			<string>Preview Dark Icons</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSGroupCell</string>
-			<key>label</key>
-			<string>Light Mode</string>
-			<key>footerText</key>
-			<string>Select the icon theme and optional images for day mode.</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSTitleValueCell</string>
-			<key>label</key>
-			<string>Icon Theme</string>
-			<key>getter</key>
-			<string>lightThemeValue</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSButtonCell</string>
-			<key>action</key>
-			<string>pickLightTheme</string>
-			<key>label</key>
-			<string>Choose Light Icon Theme</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSTitleValueCell</string>
-			<key>label</key>
-			<string>Home Image</string>
-			<key>getter</key>
-			<string>lightHomeWallpaperValue</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSButtonCell</string>
-			<key>action</key>
-			<string>pickLightHomeWallpaper</string>
-			<key>label</key>
-			<string>Choose Light Home Image</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSTitleValueCell</string>
-			<key>label</key>
-			<string>Lock Image</string>
-			<key>getter</key>
-			<string>lightLockWallpaperValue</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSButtonCell</string>
-			<key>action</key>
-			<string>pickLightLockWallpaper</string>
-			<key>label</key>
-			<string>Choose Light Lock Image</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSGroupCell</string>
-			<key>label</key>
-			<string>Dark Mode</string>
-			<key>footerText</key>
-			<string>Select the icon theme and optional images for night mode.</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSTitleValueCell</string>
-			<key>label</key>
-			<string>Icon Theme</string>
-			<key>getter</key>
-			<string>darkThemeValue</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSButtonCell</string>
-			<key>action</key>
-			<string>pickDarkTheme</string>
-			<key>label</key>
-			<string>Choose Dark Icon Theme</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSTitleValueCell</string>
-			<key>label</key>
-			<string>Home Image</string>
-			<key>getter</key>
-			<string>darkHomeWallpaperValue</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSButtonCell</string>
-			<key>action</key>
-			<string>pickDarkHomeWallpaper</string>
-			<key>label</key>
-			<string>Choose Dark Home Image</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSTitleValueCell</string>
-			<key>label</key>
-			<string>Lock Image</string>
-			<key>getter</key>
-			<string>darkLockWallpaperValue</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSButtonCell</string>
-			<key>action</key>
-			<string>pickDarkLockWallpaper</string>
-			<key>label</key>
-			<string>Choose Dark Lock Image</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSGroupCell</string>
-			<key>label</key>
-			<string>Apply</string>
-			<key>footerText</key>
-			<string>Live overlay is off by default to stop black squares and missing labels. Turn it on only for icon testing.</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSSwitchCell</string>
-			<key>default</key>
-			<false/>
-			<key>defaults</key>
-			<string>com.omaralasam.automode</string>
-			<key>key</key>
-			<string>LiveIconOverlayEnabled</string>
-			<key>label</key>
-			<string>Live Icon Overlay</string>
-			<key>PostNotification</key>
-			<string>com.omaralasam.automode/preferences.changed</string>
+			<string>Live Icon Overlay يبقى مطفي حتى لا ترجع المربعات السوداء. نستخدم المعاينة أولاً.</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -214,7 +48,7 @@
 			<key>action</key>
 			<string>applyNow</string>
 			<key>label</key>
-			<string>Apply Now</string>
+			<string>تطبيق الآن</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -228,41 +62,15 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>label</key>
-			<string>Status</string>
-			<key>footerText</key>
-			<string>Use diagnostics only when something does not behave as expected.</string>
+			<string>اختبار</string>
 		</dict>
 		<dict>
 			<key>cell</key>
 			<string>PSTitleValueCell</string>
 			<key>label</key>
-			<string>Diagnostic Code</string>
+			<string>الحالة</string>
 			<key>getter</key>
 			<string>diagnosticCodeValue</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSTitleValueCell</string>
-			<key>label</key>
-			<string>Engine Loaded</string>
-			<key>getter</key>
-			<string>engineLoadedValue</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSTitleValueCell</string>
-			<key>label</key>
-			<string>Last Error</string>
-			<key>getter</key>
-			<string>lastErrorValue</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSButtonCell</string>
-			<key>action</key>
-			<string>runEngineProbe</string>
-			<key>label</key>
-			<string>Run Safe Probe</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -270,29 +78,7 @@
 			<key>action</key>
 			<string>showDiagnostics</string>
 			<key>label</key>
-			<string>Show Full Diagnostics</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSGroupCell</string>
-			<key>label</key>
-			<string>Storage</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSTitleValueCell</string>
-			<key>label</key>
-			<string>Themes Folder</string>
-			<key>getter</key>
-			<string>themesFolderValue</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSTitleValueCell</string>
-			<key>label</key>
-			<string>Images Folder</string>
-			<key>getter</key>
-			<string>wallpapersFolderValue</string>
+			<string>Diagnostics</string>
 		</dict>
 	</array>
 </dict>

@@ -1,8 +1,8 @@
 Package: com.omaralasam.automode
 Name: Omar Auto Mode
-Version: 3.0-rootless
+Version: 3.1-rootless
 Architecture: iphoneos-arm64
-Description: Preview-safe automatic theme manager with icon image browser and saved wallpaper slots.
+Description: Day and night profile dashboard with icon theme previews and saved image slots.
 Maintainer: Omar al-Asam <omar@example.local>
 Author: Omar al-Asam
 Section: Tweaks

@@ -1,5 +1,6 @@
 #import "OMAOMRootListController.h"
 #import "OMAOMIconPreviewController.h"
+#import "OMAOMProfileController.h"
 #import "OMAOMThemePickerController.h"
 #import "../Shared/OMAOMShared.h"
 #import <Preferences/PSSpecifier.h>
@@ -80,6 +81,25 @@ static NSString *OMAOMPrefsDetectedMode(void) {
     return @"light";
 }
 
+static NSArray<NSString *> *OMAOMPrefsIconSamples(NSString *path, NSUInteger limit) {
+    if (!path.length) {
+        return @[];
+    }
+
+    NSMutableArray<NSString *> *items = [NSMutableArray array];
+    NSDirectoryEnumerator<NSString *> *enumerator = [NSFileManager.defaultManager enumeratorAtPath:path];
+    for (NSString *item in enumerator) {
+        if (![item.pathExtension.lowercaseString isEqualToString:@"png"]) {
+            continue;
+        }
+        [items addObject:[path stringByAppendingPathComponent:item]];
+        if (items.count >= limit) {
+            break;
+        }
+    }
+    return items;
+}
+
 @interface OMAOMRootListController ()
 @property (nonatomic, copy) NSString *pendingWallpaperKey;
 @end
@@ -96,11 +116,150 @@ static NSString *OMAOMPrefsDetectedMode(void) {
 - (void)viewDidLoad {
     [super viewDidLoad];
     OMAOMEnsureDirectories();
+    [self installDashboardHeader];
 }
 
 - (void)viewWillAppear:(BOOL)animated {
     [super viewWillAppear:animated];
     [self reloadSpecifiers];
+    [self installDashboardHeader];
+}
+
+- (UITableView *)omaomPreferencesTableView {
+    @try {
+        id table = [self valueForKey:@"table"];
+        if ([table isKindOfClass:UITableView.class]) {
+            return table;
+        }
+    } @catch (__unused NSException *exception) {
+    }
+    return nil;
+}
+
+- (void)installDashboardHeader {
+    UITableView *tableView = [self omaomPreferencesTableView];
+    if (!tableView) {
+        return;
+    }
+
+    CGFloat width = tableView.bounds.size.width;
+    if (width <= 0) {
+        width = UIScreen.mainScreen.bounds.size.width;
+    }
+    tableView.tableHeaderView = [self dashboardHeaderWithWidth:width];
+}
+
+- (UIView *)dashboardHeaderWithWidth:(CGFloat)width {
+    UIView *header = [[UIView alloc] initWithFrame:CGRectMake(0, 0, width, 350.0)];
+    header.backgroundColor = UIColor.clearColor;
+
+    UILabel *title = [[UILabel alloc] initWithFrame:CGRectMake(18.0, 18.0, width - 36.0, 36.0)];
+    title.text = @"Omar Auto Mode";
+    title.textAlignment = NSTextAlignmentCenter;
+    title.font = [UIFont systemFontOfSize:30.0 weight:UIFontWeightBold];
+    title.textColor = UIColor.labelColor;
+    [header addSubview:title];
+
+    UILabel *subtitle = [[UILabel alloc] initWithFrame:CGRectMake(30.0, 58.0, width - 60.0, 44.0)];
+    subtitle.text = @"اختر شاشة النهار أو الليل وعدل الثيم والصور من مكان واحد";
+    subtitle.textAlignment = NSTextAlignmentCenter;
+    subtitle.numberOfLines = 2;
+    subtitle.font = [UIFont preferredFontForTextStyle:UIFontTextStyleSubheadline];
+    subtitle.textColor = UIColor.secondaryLabelColor;
+    [header addSubview:subtitle];
+
+    CGFloat gap = 14.0;
+    CGFloat cardWidth = (width - 36.0 - gap) / 2.0;
+    UIView *lightCard = [self dashboardProfileCardWithMode:@"light" frame:CGRectMake(18.0, 118.0, cardWidth, 206.0)];
+    UIView *darkCard = [self dashboardProfileCardWithMode:@"dark" frame:CGRectMake(18.0 + cardWidth + gap, 118.0, cardWidth, 206.0)];
+    [header addSubview:lightCard];
+    [header addSubview:darkCard];
+
+    return header;
+}
+
+- (UIView *)dashboardProfileCardWithMode:(NSString *)mode frame:(CGRect)frame {
+    BOOL dark = [mode isEqualToString:@"dark"];
+    UIControl *card = [[UIControl alloc] initWithFrame:frame];
+    card.backgroundColor = dark ? [UIColor colorWithWhite:0.08 alpha:1.0] : [UIColor colorWithRed:0.91 green:0.96 blue:1.0 alpha:1.0];
+    card.layer.cornerRadius = 22.0;
+    card.layer.borderWidth = 1.0;
+    card.layer.borderColor = (dark ? [UIColor colorWithWhite:0.25 alpha:1.0] : [UIColor colorWithWhite:1.0 alpha:1.0]).CGColor;
+    card.clipsToBounds = YES;
+    [card addTarget:self action:(dark ? @selector(openDarkProfile) : @selector(openLightProfile)) forControlEvents:UIControlEventTouchUpInside];
+
+    NSString *themePath = [self resolvedThemePathForMode:mode];
+    NSString *wallpaperKey = dark ? @"DarkHomeWallpaper" : @"LightHomeWallpaper";
+    NSString *wallpaperPath = OMAOMStringPreference(wallpaperKey, OMAOMDefaultPathForKey(wallpaperKey));
+    UIImage *wallpaper = [UIImage imageWithContentsOfFile:wallpaperPath];
+    if (wallpaper) {
+        UIImageView *wallpaperView = [[UIImageView alloc] initWithFrame:card.bounds];
+        wallpaperView.image = wallpaper;
+        wallpaperView.contentMode = UIViewContentModeScaleAspectFill;
+        wallpaperView.alpha = dark ? 0.48 : 0.62;
+        [card addSubview:wallpaperView];
+    }
+
+    UIView *phone = [[UIView alloc] initWithFrame:CGRectMake((frame.size.width - 102.0) / 2.0, 16.0, 102.0, 132.0)];
+    phone.backgroundColor = dark ? [UIColor colorWithWhite:0.02 alpha:0.92] : [UIColor colorWithWhite:1.0 alpha:0.82];
+    phone.layer.cornerRadius = 21.0;
+    phone.layer.borderWidth = 2.0;
+    phone.layer.borderColor = (dark ? UIColor.blackColor : UIColor.whiteColor).CGColor;
+    phone.clipsToBounds = YES;
+    phone.userInteractionEnabled = NO;
+    [card addSubview:phone];
+
+    UILabel *time = [[UILabel alloc] initWithFrame:CGRectMake(0, 9.0, phone.bounds.size.width, 18.0)];
+    time.text = dark ? @"11:30" : @"9:41";
+    time.font = [UIFont systemFontOfSize:13.0 weight:UIFontWeightSemibold];
+    time.textAlignment = NSTextAlignmentCenter;
+    time.textColor = dark ? UIColor.whiteColor : UIColor.blackColor;
+    [phone addSubview:time];
+
+    NSArray<NSString *> *samples = OMAOMPrefsIconSamples(themePath, 6);
+    CGFloat icon = 20.0;
+    CGFloat gap = 9.0;
+    CGFloat startX = (phone.bounds.size.width - icon * 3.0 - gap * 2.0) / 2.0;
+    for (NSUInteger index = 0; index < 6; index++) {
+        CGFloat row = index / 3;
+        CGFloat col = index % 3;
+        UIImageView *iconView = [[UIImageView alloc] initWithFrame:CGRectMake(startX + col * (icon + gap), 38.0 + row * 34.0, icon, icon)];
+        iconView.backgroundColor = dark ? [UIColor colorWithWhite:0.18 alpha:0.95] : UIColor.whiteColor;
+        iconView.layer.cornerRadius = 6.0;
+        iconView.clipsToBounds = YES;
+        iconView.contentMode = UIViewContentModeScaleAspectFit;
+        if (index < samples.count) {
+            iconView.image = [UIImage imageWithContentsOfFile:samples[index]];
+        }
+        [phone addSubview:iconView];
+    }
+
+    UILabel *modeLabel = [[UILabel alloc] initWithFrame:CGRectMake(12.0, 154.0, frame.size.width - 24.0, 24.0)];
+    modeLabel.text = dark ? @"الوضع الليلي" : @"الوضع النهاري";
+    modeLabel.textAlignment = NSTextAlignmentCenter;
+    modeLabel.font = [UIFont systemFontOfSize:18.0 weight:UIFontWeightBold];
+    modeLabel.textColor = dark ? UIColor.whiteColor : UIColor.blackColor;
+    [card addSubview:modeLabel];
+
+    UILabel *themeLabel = [[UILabel alloc] initWithFrame:CGRectMake(12.0, 178.0, frame.size.width - 24.0, 18.0)];
+    themeLabel.text = themePath.lastPathComponent.length ? themePath.lastPathComponent : @"No theme";
+    themeLabel.textAlignment = NSTextAlignmentCenter;
+    themeLabel.font = [UIFont systemFontOfSize:12.0 weight:UIFontWeightMedium];
+    themeLabel.textColor = dark ? UIColor.lightGrayColor : UIColor.secondaryLabelColor;
+    themeLabel.adjustsFontSizeToFitWidth = YES;
+    [card addSubview:themeLabel];
+
+    return card;
+}
+
+- (void)openLightProfile {
+    OMAOMProfileController *controller = [[OMAOMProfileController alloc] initWithMode:@"light" title:@"Day Profile"];
+    [self.navigationController pushViewController:controller animated:YES];
+}
+
+- (void)openDarkProfile {
+    OMAOMProfileController *controller = [[OMAOMProfileController alloc] initWithMode:@"dark" title:@"Night Profile"];
+    [self.navigationController pushViewController:controller animated:YES];
 }
 
 - (id)readPreferenceValue:(PSSpecifier *)specifier {
