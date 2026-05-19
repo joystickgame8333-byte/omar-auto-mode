@@ -1,0 +1,71 @@
+{
+    title = "Omar Auto Icons";
+    items = (
+        {
+            cell = PSGroupCell;
+            label = "Automatic Mode";
+            footerText = "Switches between day and night icon folders by time. Use Apply Now after changing values.";
+        },
+        {
+            cell = PSSwitchCell;
+            default = 1;
+            defaults = "com.omaralasam.autoicons";
+            key = Enabled;
+            label = "Enabled";
+            PostNotification = "com.omaralasam.autoicons/preferences.changed";
+        },
+        {
+            cell = PSSliderCell;
+            default = 6;
+            defaults = "com.omaralasam.autoicons";
+            key = DayStartHour;
+            label = "Day Start Hour";
+            max = 23;
+            min = 0;
+            showValue = 1;
+            PostNotification = "com.omaralasam.autoicons/preferences.changed";
+        },
+        {
+            cell = PSSliderCell;
+            default = 18;
+            defaults = "com.omaralasam.autoicons";
+            key = NightStartHour;
+            label = "Night Start Hour";
+            max = 23;
+            min = 0;
+            showValue = 1;
+            PostNotification = "com.omaralasam.autoicons/preferences.changed";
+        },
+        {
+            cell = PSSliderCell;
+            default = 60;
+            defaults = "com.omaralasam.autoicons";
+            key = RefreshIntervalSeconds;
+            label = "Refresh Seconds";
+            max = 300;
+            min = 15;
+            showValue = 1;
+            PostNotification = "com.omaralasam.autoicons/preferences.changed";
+        },
+        {
+            cell = PSGroupCell;
+            label = "Actions";
+        },
+        {
+            action = applyNow;
+            cell = PSButtonCell;
+            label = "Apply Now";
+        },
+        {
+            action = respring;
+            cell = PSButtonCell;
+            isDestructive = 1;
+            label = "Respring";
+        },
+        {
+            cell = PSGroupCell;
+            label = "Folders";
+            footerText = "Icons are stored in /var/jb/Library/OmarAutoIcons/Day and /var/jb/Library/OmarAutoIcons/Night.";
+        }
+    );
+}

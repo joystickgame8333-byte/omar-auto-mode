@@ -1,9 +1,9 @@
 Package: com.omaralasam.autoicons
 Name: Omar Auto Icons
-Version: 0.1
+Version: 0.2
 Architecture: iphoneos-arm64
 Description: Standalone day/night icon switcher for SpringBoard. No SnowBoard required. First install needs one respring, then automatic switching refreshes icons without respring.
 Maintainer: Omar Alasam
 Author: Omar Alasam
 Section: Tweaks
-Depends: mobilesubstrate
+Depends: mobilesubstrate, preferenceloader

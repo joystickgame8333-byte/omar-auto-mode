@@ -1,0 +1,9 @@
+{
+    entry = {
+        bundle = OmarAutoIconsPrefs;
+        cell = PSLinkCell;
+        detail = OAIRootListController;
+        isController = 1;
+        label = "Omar Auto Icons";
+    };
+}

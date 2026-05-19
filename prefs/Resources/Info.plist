@@ -1,0 +1,11 @@
+{
+    CFBundleDevelopmentRegion = English;
+    CFBundleExecutable = OmarAutoIconsPrefs;
+    CFBundleIdentifier = "com.omaralasam.autoicons.preferences";
+    CFBundleInfoDictionaryVersion = "6.0";
+    CFBundleName = OmarAutoIconsPrefs;
+    CFBundlePackageType = BNDL;
+    CFBundleShortVersionString = "0.2";
+    CFBundleVersion = "0.2";
+    NSPrincipalClass = OAIRootListController;
+}

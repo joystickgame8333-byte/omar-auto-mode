@@ -2,8 +2,11 @@
 #import <Foundation/Foundation.h>
 #import <objc/runtime.h>
 #import <objc/message.h>
+#import <notify.h>
 
 static NSString * const OAIRoot = @"/var/jb/Library/OmarAutoIcons";
+static NSString * const OAIPreferencesPath = @"/var/mobile/Library/Preferences/com.omaralasam.autoicons.plist";
+static const char *OAINotification = "com.omaralasam.autoicons/preferences.changed";
 static BOOL OAIEnabled = YES;
 static NSInteger OAIDayStartHour = 6;
 static NSInteger OAINightStartHour = 18;
@@ -40,8 +43,18 @@ static NSString *OAIBundleIdentifierFromIcon(id icon) {
 }
 
 static void OAILoadConfig(void) {
-    NSDictionary *cfg = [NSDictionary dictionaryWithContentsOfFile:[OAIRoot stringByAppendingPathComponent:@"config.plist"]];
-    if (![cfg isKindOfClass:[NSDictionary class]]) return;
+    NSMutableDictionary *cfg = [NSMutableDictionary dictionary];
+    NSDictionary *packaged = [NSDictionary dictionaryWithContentsOfFile:[OAIRoot stringByAppendingPathComponent:@"config.plist"]];
+    if ([packaged isKindOfClass:[NSDictionary class]]) {
+        [cfg addEntriesFromDictionary:packaged];
+    }
+
+    NSDictionary *preferences = [NSDictionary dictionaryWithContentsOfFile:OAIPreferencesPath];
+    if ([preferences isKindOfClass:[NSDictionary class]]) {
+        [cfg addEntriesFromDictionary:preferences];
+    }
+
+    if (!cfg.count) return;
 
     id enabled = cfg[@"Enabled"];
     if ([enabled respondsToSelector:@selector(boolValue)]) OAIEnabled = [enabled boolValue];
@@ -247,6 +260,13 @@ static UIImage *OAIResizeImage(UIImage *image, CGSize size) {
             [NSTimer scheduledTimerWithTimeInterval:OAIRefreshInterval repeats:YES block:^(NSTimer *timer) {
                 OAICheckModeAndRefreshIfNeeded();
             }];
+        });
+
+        static int token = 0;
+        notify_register_dispatch(OAINotification, &token, dispatch_get_main_queue(), ^(int receivedToken) {
+            OAILoadConfig();
+            OAIIsNightMode = OAICalcNightMode();
+            OAIRefreshSpringBoardIcons();
         });
     }
 }
