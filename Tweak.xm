@@ -85,9 +85,30 @@ static UIImage *OAICustomIconImage(NSString *bundleID) {
     return img;
 }
 
+static NSArray<UIWindow *> *OAIApplicationWindows(void) {
+    NSMutableArray<UIWindow *> *windows = [NSMutableArray array];
+    UIApplication *application = UIApplication.sharedApplication;
+
+    if (@available(iOS 13.0, *)) {
+        for (UIScene *scene in application.connectedScenes) {
+            if (![scene isKindOfClass:UIWindowScene.class]) continue;
+            UIWindowScene *windowScene = (UIWindowScene *)scene;
+            [windows addObjectsFromArray:windowScene.windows ?: @[]];
+        }
+    }
+
+    if (!windows.count) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+        [windows addObjectsFromArray:application.windows ?: @[]];
+#pragma clang diagnostic pop
+    }
+    return windows;
+}
+
 static void OAIRefreshSpringBoardIcons(void) {
     dispatch_async(dispatch_get_main_queue(), ^{
-        NSArray *windows = UIApplication.sharedApplication.windows;
+        NSArray *windows = OAIApplicationWindows();
         for (UIWindow *w in windows) {
             [w setNeedsLayout];
             [w layoutIfNeeded];
@@ -140,15 +161,15 @@ static UIImage *OAIResizeImage(UIImage *image, CGSize size) {
 - (void)setIcon:(id)icon {
     %orig;
     objc_setAssociatedObject(self, @selector(setIcon:), icon, OBJC_ASSOCIATION_ASSIGN);
-    [self setNeedsLayout];
+    [(UIView *)self setNeedsLayout];
 }
 
 - (void)layoutSubviews {
     %orig;
 
     id icon = objc_getAssociatedObject(self, @selector(setIcon:));
-    if (!icon && [self respondsToSelector:NSSelectorFromString(@"icon")]) {
-        icon = OAICall0(self, NSSelectorFromString(@"icon"));
+    if (!icon && [(id)self respondsToSelector:NSSelectorFromString(@"icon")]) {
+        icon = OAICall0((id)self, NSSelectorFromString(@"icon"));
     }
 
     NSString *bundleID = OAIBundleIdentifierFromIcon(icon);
@@ -187,8 +208,8 @@ static UIImage *OAIResizeImage(UIImage *image, CGSize size) {
 - (void)layoutSubviews {
     %orig;
 
-    if (![self respondsToSelector:NSSelectorFromString(@"icon")]) return;
-    id icon = OAICall0(self, NSSelectorFromString(@"icon"));
+    if (![(id)self respondsToSelector:NSSelectorFromString(@"icon")]) return;
+    id icon = OAICall0((id)self, NSSelectorFromString(@"icon"));
     NSString *bundleID = OAIBundleIdentifierFromIcon(icon);
     UIImage *custom = OAICustomIconImage(bundleID);
     if (!custom) return;
