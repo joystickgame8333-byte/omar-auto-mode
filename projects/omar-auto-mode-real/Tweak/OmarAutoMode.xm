@@ -13,6 +13,9 @@ static BOOL OMAOMIsApplyingIconOverlay = NO;
 static const NSInteger OMAOMIconOverlayTag = 260526;
 static NSMutableDictionary<NSString *, UIImage *> *OMAOMIconImageCache;
 static NSMutableSet<NSString *> *OMAOMMissingIconPathCache;
+static NSString *OMAOMLastPreparedMode;
+static NSString *OMAOMLastPreparedThemePath;
+static BOOL OMAOMActiveIconsPrepared = NO;
 
 static NSNumber *OMAOMNowNumber(void) {
     return @([[NSDate date] timeIntervalSince1970]);
@@ -417,6 +420,37 @@ static BOOL OMAOMApplyIconOverlay(UIView *view, NSString *source) {
     return applied;
 }
 
+static NSUInteger OMAOMRefreshIconViewsInView(UIView *view) {
+    if (!view) {
+        return 0;
+    }
+
+    NSUInteger refreshed = 0;
+    Class iconViewClass = NSClassFromString(@"SBIconView");
+    if (iconViewClass && [view isKindOfClass:iconViewClass]) {
+        if (OMAOMApplyIconOverlay(view, @"visible refresh")) {
+            refreshed++;
+        }
+    }
+
+    for (UIView *subview in view.subviews) {
+        refreshed += OMAOMRefreshIconViewsInView(subview);
+    }
+    return refreshed;
+}
+
+static NSUInteger OMAOMRefreshVisibleIconViews(void) {
+    UIApplication *application = UIApplication.sharedApplication;
+    NSArray<UIWindow *> *windows = application.windows ?: @[];
+    NSUInteger refreshed = 0;
+    for (UIWindow *window in windows) {
+        refreshed += OMAOMRefreshIconViewsInView(window);
+    }
+    OMAOMSetDiagnosticValue(@"WindowCount", @(windows.count));
+    OMAOMSetDiagnosticValue(@"VisibleIconRefreshCount", @(refreshed));
+    return refreshed;
+}
+
 static NSString *OMAOMSpringBoardClassProbe(void) {
     NSArray<NSString *> *classes = @[
         @"SBIcon",
@@ -475,7 +509,7 @@ static NSString *OMAOMSpringBoardClassProbe(void) {
     return [NSString stringWithFormat:@"classes %lu/%lu | %@", (unsigned long)classHits, (unsigned long)classes.count, [lines componentsJoinedByString:@" | "]];
 }
 
-static void OMAOMApplyCurrentModeProbe(void) {
+static void OMAOMApplyCurrentModeProbe(BOOL force) {
     if (!OMAOMBoolPreference(@"Enabled", YES)) {
         OMAOMDebugEvent(@"standalone probe skipped: disabled");
         return;
@@ -493,38 +527,57 @@ static void OMAOMApplyCurrentModeProbe(void) {
     OMAOMSetDiagnosticValue(@"ThemeKey", themeKey);
     OMAOMSetDiagnosticValue(@"ThemePath", themePath);
     OMAOMSetDiagnosticValue(@"ThemePNGCount", @(OMAOMPNGFileCountAtPath(themePath)));
-    OMAOMSetDiagnosticValue(@"LastWallpaperResult", @"disabled in 2.7 icons-only overlay");
-    OMAOMSetDiagnosticValue(@"ProofWallpaperResult", @"disabled in 2.7 icons-only overlay");
-    OMAOMSetDiagnosticValue(@"WindowCount", @0);
-    OMAOMSetDiagnosticValue(@"LastIconPath", @"waiting for SBIconView overlay");
-    OMAOMSetDiagnosticValue(@"LastIconMiss", @"waiting for icon layout");
-    OMAOMSetDiagnosticValue(@"StandaloneState", @"SBIconView overlay engine installed; original layer hidden when applied");
+    OMAOMSetDiagnosticValue(@"LastWallpaperResult", @"disabled in 2.8 icons-only overlay");
+    OMAOMSetDiagnosticValue(@"ProofWallpaperResult", @"disabled in 2.8 icons-only overlay");
+    if (OMAOMIconViewProbeHitCount == 0) {
+        OMAOMSetDiagnosticValue(@"LastIconPath", @"waiting for SBIconView overlay");
+        OMAOMSetDiagnosticValue(@"LastIconMiss", @"waiting for icon layout");
+    }
+    OMAOMSetDiagnosticValue(@"StandaloneState", @"SBIconView overlay engine installed; auto refresh enabled");
     OMAOMSetDiagnosticValue(@"SpringBoardClassProbe", OMAOMSpringBoardClassProbe());
+
+    BOOL shouldPrepare = force || !OMAOMActiveIconsPrepared || ![OMAOMLastPreparedMode isEqualToString:mode] || ![OMAOMLastPreparedThemePath isEqualToString:themePath];
+    if (!shouldPrepare) {
+        NSUInteger refreshed = OMAOMRefreshVisibleIconViews();
+        OMAOMSetDiagnosticValue(@"AutoSwitchState", [NSString stringWithFormat:@"already prepared; refreshed %lu visible icons", (unsigned long)refreshed]);
+        return;
+    }
 
     if (OMAOMCopyDirectory(themePath, OMAOMActiveIconsPath())) {
         OMAOMResetIconImageCache();
+        OMAOMActiveIconsPrepared = YES;
+        OMAOMLastPreparedMode = [mode copy];
+        OMAOMLastPreparedThemePath = [themePath copy];
         OMAOMSetPreferenceSilently(@"LastAppliedMode", mode);
         OMAOMSetPreferenceSilently(@"LastSourceThemePath", themePath);
         OMAOMSetPreferenceSilently(@"ActiveThemePath", OMAOMActiveIconsPath());
         OMAOMSetDiagnosticValue(@"ActiveThemePath", OMAOMActiveIconsPath());
         OMAOMSetDiagnosticValue(@"ActiveThemePNGCount", @(OMAOMPNGFileCountAtPath(OMAOMActiveIconsPath())));
-        OMAOMDebugEvent(@"2.7 standalone copied active icons and enabled clean overlay");
+        NSUInteger refreshed = OMAOMRefreshVisibleIconViews();
+        OMAOMSetDiagnosticValue(@"AutoSwitchState", [NSString stringWithFormat:@"prepared %@; refreshed %lu visible icons", mode, (unsigned long)refreshed]);
+        OMAOMDebugEvent(@"2.8 standalone prepared active icons and refreshed overlays");
     } else if ([NSFileManager.defaultManager fileExistsAtPath:themePath]) {
         OMAOMResetIconImageCache();
+        OMAOMActiveIconsPrepared = YES;
+        OMAOMLastPreparedMode = [mode copy];
+        OMAOMLastPreparedThemePath = [themePath copy];
         OMAOMSetPreferenceSilently(@"LastAppliedMode", mode);
         OMAOMSetPreferenceSilently(@"LastSourceThemePath", themePath);
         OMAOMSetPreferenceSilently(@"ActiveThemePath", themePath);
         OMAOMSetDiagnosticValue(@"ActiveThemePath", themePath);
         OMAOMSetDiagnosticValue(@"ActiveThemePNGCount", @(OMAOMPNGFileCountAtPath(themePath)));
-        OMAOMDebugEvent(@"2.7 standalone using selected theme directly");
+        NSUInteger refreshed = OMAOMRefreshVisibleIconViews();
+        OMAOMSetDiagnosticValue(@"AutoSwitchState", [NSString stringWithFormat:@"using source directly; refreshed %lu visible icons", (unsigned long)refreshed]);
+        OMAOMDebugEvent(@"2.8 standalone using selected theme directly");
     } else {
-        OMAOMDebugEvent(@"2.7 standalone failed before active icons");
+        OMAOMSetDiagnosticValue(@"AutoSwitchState", @"prepare failed before active icons");
+        OMAOMDebugEvent(@"2.8 standalone failed before active icons");
     }
 }
 
 static void OMAOMDarwinCallback(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo) {
-    OMAOMDebugEvent(@"2.7 standalone icon overlay notification received");
-    OMAOMApplyCurrentModeProbe();
+    OMAOMDebugEvent(@"2.8 standalone icon overlay notification received");
+    OMAOMApplyCurrentModeProbe(YES);
 }
 
 %hook SBIconView
@@ -566,13 +619,13 @@ static void OMAOMDarwinCallback(CFNotificationCenterRef center, void *observer, 
             OMAOMSetDiagnosticValue(@"LastIconView", @"waiting for SBIconView");
             OMAOMSetDiagnosticValue(@"IconViewSubviews", @"waiting");
             OMAOMSetDiagnosticValue(@"LastIconImageViewsApplied", @0);
-            OMAOMDebugEvent(@"2.7 standalone SBIconView overlay engine loaded");
+            OMAOMDebugEvent(@"2.8 standalone SBIconView overlay engine loaded");
             CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, OMAOMDarwinCallback, (__bridge CFStringRef)OMAOMApplyNotification, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
             CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, OMAOMDarwinCallback, (__bridge CFStringRef)OMAOMPreferencesChangedNotification, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
-            OMAOMApplyCurrentModeProbe();
+            OMAOMApplyCurrentModeProbe(YES);
 
             [NSTimer scheduledTimerWithTimeInterval:10.0 repeats:YES block:^(__unused NSTimer *timer) {
-                OMAOMApplyCurrentModeProbe();
+                OMAOMApplyCurrentModeProbe(NO);
             }];
         });
     }

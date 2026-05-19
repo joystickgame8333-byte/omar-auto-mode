@@ -1,8 +1,8 @@
 Package: com.omaralasam.automode
 Name: Omar Auto Mode
-Version: 2.7-rootless
+Version: 2.8-rootless
 Architecture: iphoneos-arm64
-Description: Standalone SBIconView overlay test for Omar Auto Mode. Original icon layer is hidden when an overlay applies.
+Description: Standalone icon overlay with automatic visible icon refresh for Omar Auto Mode.
 Maintainer: Omar al-Asam <omar@example.local>
 Author: Omar al-Asam
 Section: Tweaks

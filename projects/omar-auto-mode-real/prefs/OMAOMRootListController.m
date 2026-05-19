@@ -291,6 +291,8 @@ extern char **environ;
         [NSString stringWithFormat:@"Icon view: %@ / applied %@", [self debugStringForKey:@"DebugLastIconView" fallback:@"Not touched"], [self debugStringForKey:@"DebugLastIconImageViewsApplied" fallback:@"0"]],
         [NSString stringWithFormat:@"Icon view hits: %@", [self debugStringForKey:@"DebugIconViewProbeHits" fallback:@"0"]],
         [NSString stringWithFormat:@"Overlay container: %@", [self debugStringForKey:@"DebugIconOverlayContainer" fallback:@"Not applied"]],
+        [NSString stringWithFormat:@"Visible refresh: %@", [self debugStringForKey:@"DebugVisibleIconRefreshCount" fallback:@"0"]],
+        [NSString stringWithFormat:@"Auto switch: %@", [self debugStringForKey:@"DebugAutoSwitchState" fallback:@"Not checked"]],
         [NSString stringWithFormat:@"Icon subviews: %@", [self debugStringForKey:@"DebugIconViewSubviews" fallback:@"Not seen"]],
         [NSString stringWithFormat:@"Standalone: %@", [self debugStringForKey:@"DebugStandaloneState" fallback:@"Unknown"]],
         [NSString stringWithFormat:@"Class probe: %@", [self debugStringForKey:@"DebugSpringBoardClassProbe" fallback:@"Not probed"]],
