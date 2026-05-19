@@ -439,9 +439,30 @@ static NSUInteger OMAOMRefreshIconViewsInView(UIView *view) {
     return refreshed;
 }
 
-static NSUInteger OMAOMRefreshVisibleIconViews(void) {
+static NSArray<UIWindow *> *OMAOMApplicationWindows(void) {
+    NSMutableArray<UIWindow *> *windows = [NSMutableArray array];
     UIApplication *application = UIApplication.sharedApplication;
-    NSArray<UIWindow *> *windows = application.windows ?: @[];
+    if (@available(iOS 13.0, *)) {
+        for (UIScene *scene in application.connectedScenes) {
+            if (![scene isKindOfClass:UIWindowScene.class]) {
+                continue;
+            }
+            UIWindowScene *windowScene = (UIWindowScene *)scene;
+            [windows addObjectsFromArray:windowScene.windows ?: @[]];
+        }
+    }
+
+    if (!windows.count) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+        [windows addObjectsFromArray:application.windows ?: @[]];
+#pragma clang diagnostic pop
+    }
+    return windows;
+}
+
+static NSUInteger OMAOMRefreshVisibleIconViews(void) {
+    NSArray<UIWindow *> *windows = OMAOMApplicationWindows();
     NSUInteger refreshed = 0;
     for (UIWindow *window in windows) {
         refreshed += OMAOMRefreshIconViewsInView(window);
