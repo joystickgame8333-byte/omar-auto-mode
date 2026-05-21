@@ -86,7 +86,7 @@ static BOOL OTRunSnowBoardUtil(NSArray<NSString *> *arguments, BOOL *themeEnable
     posix_spawn_file_actions_adddup2(&actions, pipe.fileHandleForWriting.fileDescriptor, STDERR_FILENO);
     posix_spawn_file_actions_addclose(&actions, pipe.fileHandleForReading.fileDescriptor);
 
-    char **argv = calloc(allArguments.count + 1, sizeof(char *));
+    char **argv = (char **)calloc(allArguments.count + 1, sizeof(char *));
     for (NSUInteger i = 0; i < allArguments.count; i++) {
         argv[i] = strdup(allArguments[i].UTF8String);
     }
