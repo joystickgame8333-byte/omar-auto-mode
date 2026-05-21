@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Omar Theme Switcher</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #050914;
+      --panel: #0f1828;
+      --panel-2: #142033;
+      --line: rgba(160, 195, 255, 0.2);
+      --text: #f5f8ff;
+      --muted: #9ca9bd;
+      --blue: #6ba6ff;
+      --sun: #ffd66b;
+      --moon: #9fb6ff;
+      --green: #62d66f;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 50% -12%, rgba(104, 162, 255, 0.26), transparent 38%),
+        linear-gradient(180deg, #050914 0%, #06101f 58%, #03060d 100%);
+      color: var(--text);
+      letter-spacing: 0;
+    }
+
+    .page {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 34px 0 40px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 44px;
+      line-height: 1.15;
+      font-weight: 800;
+    }
+
+    header p {
+      margin: 12px 0 0;
+      color: var(--muted);
+      font-size: 19px;
+    }
+
+    .profiles {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 28px;
+      align-items: center;
+      direction: ltr;
+    }
+
+    .profile {
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
+      border-radius: 24px;
+      padding: 22px;
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.35);
+      direction: rtl;
+    }
+
+    .profile-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 10px 16px;
+      background: rgba(255, 255, 255, 0.06);
+      font-weight: 700;
+      font-size: 19px;
+    }
+
+    .badge span {
+      width: 26px;
+      height: 26px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+    }
+
+    .profile button {
+      border: 1px solid rgba(107, 166, 255, 0.45);
+      color: var(--text);
+      background: rgba(107, 166, 255, 0.14);
+      border-radius: 12px;
+      padding: 10px 14px;
+      font-weight: 700;
+      font-size: 15px;
+    }
+
+    .phone {
+      width: min(100%, 340px);
+      margin: 0 auto;
+      aspect-ratio: 9 / 19.2;
+      border-radius: 42px;
+      border: 7px solid #151923;
+      overflow: hidden;
+      position: relative;
+      background: linear-gradient(180deg, #79c7ff, #f9fbff 58%, #e8f0ff);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+    }
+
+    .phone.night {
+      background: linear-gradient(180deg, #071326, #131722 55%, #040711);
+    }
+
+    .notch {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      width: 96px;
+      height: 26px;
+      transform: translateX(-50%);
+      border-radius: 0 0 18px 18px;
+      background: #0b0d13;
+    }
+
+    .icons {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 17px;
+      padding: 58px 22px 0;
+      direction: ltr;
+    }
+
+    .icon {
+      aspect-ratio: 1;
+      border-radius: 17px;
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      font-size: 20px;
+      color: #111827;
+      background: rgba(255, 255, 255, 0.92);
+      box-shadow: 0 9px 18px rgba(11, 22, 44, 0.18);
+    }
+
+    .night .icon {
+      color: #f4f7ff;
+      background: linear-gradient(180deg, #2a2f38, #111318);
+      box-shadow: 0 9px 18px rgba(0, 0, 0, 0.34);
+    }
+
+    .dock {
+      position: absolute;
+      left: 16px;
+      right: 16px;
+      bottom: 18px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      padding: 12px;
+      border-radius: 25px;
+      background: rgba(255, 255, 255, 0.42);
+      backdrop-filter: blur(16px);
+      direction: ltr;
+    }
+
+    .night .dock { background: rgba(255, 255, 255, 0.12); }
+
+    .arrow {
+      width: 86px;
+      height: 86px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--blue);
+      font-size: 40px;
+      font-weight: 800;
+    }
+
+    .settings {
+      margin-top: 28px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+    }
+
+    .setting {
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 16px;
+      padding: 16px;
+      min-height: 104px;
+    }
+
+    .setting strong {
+      display: block;
+      font-size: 18px;
+      margin-bottom: 7px;
+    }
+
+    .setting p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 880px) {
+      h1 { font-size: 34px; }
+      .profiles { grid-template-columns: 1fr; direction: rtl; }
+      .arrow { margin: 0 auto; transform: rotate(90deg); }
+      .settings { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (max-width: 520px) {
+      .page { width: min(100% - 22px, 420px); padding-top: 22px; }
+      h1 { font-size: 28px; }
+      header p { font-size: 16px; }
+      .profile { padding: 16px; border-radius: 18px; }
+      .profile-head { align-items: stretch; flex-direction: column; }
+      .settings { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header>
+      <h1>تبديل تلقائي بين ثيم النهار والليل</h1>
+      <p>أداة خفيفة تختار ثيمين SnowBoard وتبدل بينهم حسب مظهر النظام أو الوقت.</p>
+    </header>
+
+    <section class="profiles" aria-label="Day and night profiles">
+      <article class="profile">
+        <div class="profile-head">
+          <div class="badge"><span>☀</span> الوضع النهاري</div>
+          <button>اختيار الثيم</button>
+        </div>
+        <div class="phone">
+          <div class="notch"></div>
+          <div class="icons">
+            <div class="icon">✉</div><div class="icon">☁</div><div class="icon">◎</div><div class="icon">A</div>
+            <div class="icon">☎</div><div class="icon">♪</div><div class="icon">◉</div><div class="icon">⚙</div>
+            <div class="icon">⌘</div><div class="icon">S</div><div class="icon">X</div><div class="icon">W</div>
+          </div>
+          <div class="dock"><div class="icon">☎</div><div class="icon">◯</div><div class="icon">♫</div><div class="icon">□</div></div>
+        </div>
+      </article>
+
+      <div class="arrow">↔</div>
+
+      <article class="profile">
+        <div class="profile-head">
+          <div class="badge"><span>☾</span> الوضع الليلي</div>
+          <button>اختيار الثيم</button>
+        </div>
+        <div class="phone night">
+          <div class="notch"></div>
+          <div class="icons">
+            <div class="icon">✉</div><div class="icon">☁</div><div class="icon">◎</div><div class="icon">A</div>
+            <div class="icon">☎</div><div class="icon">♪</div><div class="icon">◉</div><div class="icon">⚙</div>
+            <div class="icon">⌘</div><div class="icon">S</div><div class="icon">X</div><div class="icon">W</div>
+          </div>
+          <div class="dock"><div class="icon">☎</div><div class="icon">◯</div><div class="icon">♫</div><div class="icon">□</div></div>
+        </div>
+      </article>
+    </section>
+
+    <section class="settings">
+      <div class="setting"><strong>بدون محرك أيقونات</strong><p>لا نستبدل صور التطبيقات بأنفسنا. SnowBoard يبقى المسؤول.</p></div>
+      <div class="setting"><strong>اختيار ثيمين</strong><p>الثيم النهاري والثيم الليلي من مجلدات SnowBoard الموجودة.</p></div>
+      <div class="setting"><strong>تبديل تلقائي</strong><p>حسب مظهر النظام، أو حسب ساعات تحددها من الإعدادات.</p></div>
+      <div class="setting"><strong>زر تطبيق فوري</strong><p>يرسل أمر تحديث لـ SnowBoard بدون لمس أسماء التطبيقات.</p></div>
+    </section>
+  </main>
+</body>
+</html>

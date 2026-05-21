@@ -1,0 +1,89 @@
+{
+    title = "Omar Theme Switcher";
+    items = (
+        {
+            cell = PSGroupCell;
+            label = "Profiles";
+            footerText = "Choose one SnowBoard theme for daytime and one for nighttime. The tool toggles only those two themes through snowboardutil.";
+        },
+        {
+            cell = PSLinkCell;
+            detail = OTThemePickerController;
+            isController = 1;
+            label = "Day Theme";
+            themeKey = DayThemePath;
+            title = "Day Theme";
+        },
+        {
+            cell = PSLinkCell;
+            detail = OTThemePickerController;
+            isController = 1;
+            label = "Night Theme";
+            themeKey = NightThemePath;
+            title = "Night Theme";
+        },
+        {
+            cell = PSGroupCell;
+            label = "Automation";
+            footerText = "System Appearance follows iOS light and dark mode. If disabled, the hour sliders decide the profile.";
+        },
+        {
+            cell = PSSwitchCell;
+            default = 1;
+            defaults = "com.omaralasam.themeswitcher";
+            key = Enabled;
+            label = "Enabled";
+            PostNotification = "com.omaralasam.themeswitcher/preferences.changed";
+        },
+        {
+            cell = PSSwitchCell;
+            default = 1;
+            defaults = "com.omaralasam.themeswitcher";
+            key = UseSystemAppearance;
+            label = "Use System Appearance";
+            PostNotification = "com.omaralasam.themeswitcher/preferences.changed";
+        },
+        {
+            cell = PSSliderCell;
+            default = 6;
+            defaults = "com.omaralasam.themeswitcher";
+            key = DayStartHour;
+            label = "Day Starts";
+            max = 23;
+            min = 0;
+            showValue = 1;
+            PostNotification = "com.omaralasam.themeswitcher/preferences.changed";
+        },
+        {
+            cell = PSSliderCell;
+            default = 18;
+            defaults = "com.omaralasam.themeswitcher";
+            key = NightStartHour;
+            label = "Night Starts";
+            max = 23;
+            min = 0;
+            showValue = 1;
+            PostNotification = "com.omaralasam.themeswitcher/preferences.changed";
+        },
+        {
+            cell = PSGroupCell;
+            label = "Actions";
+        },
+        {
+            action = applyNow;
+            cell = PSButtonCell;
+            label = "Apply Now";
+        },
+        {
+            action = openSnowBoard;
+            cell = PSButtonCell;
+            label = "Open SnowBoard";
+        },
+        {
+            action = respring;
+            cell = PSButtonCell;
+            isDestructive = 1;
+            label = "Respring";
+        }
+    );
+}

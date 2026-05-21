@@ -1,0 +1,11 @@
+{
+    CFBundleDevelopmentRegion = English;
+    CFBundleExecutable = OmarThemeSwitcherPrefs;
+    CFBundleIdentifier = "com.omaralasam.themeswitcher.preferences";
+    CFBundleInfoDictionaryVersion = "6.0";
+    CFBundleName = OmarThemeSwitcherPrefs;
+    CFBundlePackageType = BNDL;
+    CFBundleShortVersionString = "0.1";
+    CFBundleVersion = "0.1";
+    NSPrincipalClass = OTRootListController;
+}

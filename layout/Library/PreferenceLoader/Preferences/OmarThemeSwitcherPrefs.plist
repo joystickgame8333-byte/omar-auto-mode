@@ -1,0 +1,9 @@
+{
+    entry = {
+        bundle = OmarThemeSwitcherPrefs;
+        cell = PSLinkCell;
+        detail = OTRootListController;
+        isController = 1;
+        label = "Omar Theme Switcher";
+    };
+}

@@ -1,0 +1,9 @@
+Package: com.omaralasam.themeswitcher
+Name: Omar Theme Switcher
+Version: 0.1
+Architecture: iphoneos-arm64
+Description: Automatic day and night SnowBoard theme switcher. It uses SnowBoard's own utility instead of replacing icons directly.
+Maintainer: Omar Alasam
+Author: Omar Alasam
+Section: Tweaks
+Depends: mobilesubstrate, preferenceloader, com.spark.snowboard
